@@ -5,14 +5,23 @@ import time
 
 def check_if_index_exist(index):
     try:
-        conn = sqlite3.connect('/home/felix/LocalDatabase.db')
-        cursor = conn.execute("SELECT id FROM channels where id = ?", (index))
-        conn.close()
-        found = false
-
+        conn = sqlite3.connect('/home/felix/LocalDatabase.db');
+        cur = conn.cursor()
     except:
-        print("something went wrong")
-    return found
+        print("second connection didnt work")
+
+    try:
+        replacement = (index,)
+        sqlstatement = "select id from channels where id = ?"
+        cur.execute(sqlstatement, replacement)
+        value = cur.fetchone()
+        conn.close()
+    except:
+        print("The select query didnt work")
+    if value == None:
+       return False
+    else:
+       return True
 
 def add_to_database(list_of_items):
     date = time.strftime("%Y-%m-%d")    #TODO check if this should be done here or ir main
@@ -21,7 +30,7 @@ def add_to_database(list_of_items):
         conn = sqlite3.connect('/home/felix/LocalDatabase.db');
         print("connected to database");
     except:
-        print("Something went wrong");
+        print("Something went wrong1");
     try:
         for index in list_of_items:
 
@@ -49,5 +58,5 @@ def add_to_database(list_of_items):
 
 
 
-list = {21: ['Hej', 10]};
+list = {100: ['Hej', 10]};
 add_to_database(list)
