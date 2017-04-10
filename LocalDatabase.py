@@ -8,18 +8,30 @@ import time
 import configparser
 
 
-def create_database(configs):
+def create_database(dbvalues):
     '''
     This function creates a database using parameters specified in a configuration file
     :return: 
     '''
     try:
-        expression = "mysql -h " + configs['host'] + " -u " + configs['user'] \
-                    + " --password=" + configs['password'] + \
-                    " --execute='create database if not exists " + configs['name'] + "'"          #Build the system command that creates the database
-        os.system(expression)
+        conn = pymysql.connect(user=dbvalues['user'], host=dbvalues['host'], password=dbvalues['password'])
+        cursor = conn.cursor()
+        sql = "show databases like '%s'" % (dbvalues['name'])
+        print(sql)
+        result = cursor.execute(sql)
+        print(result)
+        if result == 0:
+            sql2 = "Create database %s" % (dbvalues['name'])
+            cursor.execute(sql2)
+            sql3 = "use %s" % (dbvalues['name'])
+            cursor.execute(sql3)
+            sql4 = "create table channels(id int primary key, name text)"
+            sql5 = "create table measurements(id int, date date, time time, measurementvalue float, primary key(id, date, time))"
+            cursor.execute(sql4)
+            cursor.execute(sql5)
         return True
-    except:
+    except TypeError as T:
+        print(T)
         return False
 
 def id_exists(id, dbvalues):
@@ -93,7 +105,7 @@ def add_to_database(list_of_items, dbvalues):
         conn.commit()
         conn.close()
         return True
-    except RuntimeError as err:
+    except TypeError as err:
         print(err)
         print("Something went wrong, read the error message")
         return False

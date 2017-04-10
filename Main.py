@@ -12,6 +12,7 @@ def read_db_config():
         passwordvalue = reader.get('default', 'password')
         namevalue = reader.get('default', 'name')
 
+        print(hostvalue)
         values = {'host': hostvalue, 'user':uservalue, 'password': passwordvalue, 'name': namevalue}
 
         return values
