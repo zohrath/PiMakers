@@ -5,16 +5,14 @@ from LocalDatabase import id_exists
 from LocalDatabase import add_to_database
 from LocalDatabase import establish_connection
 
-
 class TestLocalDatabase(unittest.TestCase):
 
     def test_create_database(self):
         exp = read_db_config()
         res1 = create_database(exp)
         self.assertEqual(res1, True)
-        res2 = create_database('Random')
-        #self.assertRaises(TypeError, create_database, 'random')
-    '''
+        self.assertRaises(TypeError, lambda: create_database, 'random')
+
     def test_id_exists(self):
         values = read_db_config()
         res1 = id_exists(1, values)
@@ -42,10 +40,9 @@ class TestLocalDatabase(unittest.TestCase):
             sql2 = "Select * from measurements where id = '%d'" % (i,)
             res4 = cursor.execute(sql2)
             self.assertGreaterEqual(res4, 2)
-        with self.assertRaises(TypeError):
-            add_to_database({'1': [23, 'hej']}, exp)
+            self.assertRaises(TypeError, lambda: add_to_database, {'1': [23, 'hej']}, exp)
 
-        '''
+
 
 
 
