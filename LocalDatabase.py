@@ -14,6 +14,7 @@ def change_channel_name(dbvalues, name, id):
     '''
     This function changes the name connected to a channel id
     :param dbvalues: configuration values for the database
+    Example: {'user': 'root', 'host':'127.0.0.1', 'password': '1234', 'name': 'EmployeeDatabase'}
     :param name: the new name of the channel
     :param id: the channel id
     :return: True if the name was changed, False otherwise
@@ -32,10 +33,36 @@ def change_channel_name(dbvalues, name, id):
         print(T)
         return False
 
+def reset_channel(dbvalues, id):
+    '''
+    This function resets a channel and removes its measurements from the database
+    :param dbvalues: configuration values for the database
+    Example: {'user': 'root', 'host':'127.0.0.1', 'password': '1234', 'name': 'EmployeeDatabase'}
+    :param id: the id of the channel to be reset
+    :return: True, if the channel was reset
+    '''
+    try:
+        conn = pymysql.connect(user=dbvalues['user'], host=dbvalues['host'], password=dbvalues['password'], database=dbvalues['name'])
+        cursor = conn.cursor()
+        sql = "delete from measurements where c_id = '%d'" % (id, )
+        cursor.execute(sql)
+        sql2 = "update channels set name = 'channel%d' where id = %d" % (id, id)
+        cursor.execute(sql2)
+        conn.commit()
+        conn.close()
+        return True
+    except RuntimeError as R:
+        print(R)
+    except TypeError as T:
+        print(T)
+        return False
+
 
 def create_database(dbvalues):
     '''
     This function creates a database using parameters specified in a configuration file
+    :param: dbvalues : configuration values for the database
+    Example: {'user': 'root', 'host':'127.0.0.1', 'password': '1234', 'name': 'EmployeeDatabase'}
     :return: True if a database was created, false otherwise
     '''
     try:
@@ -67,8 +94,9 @@ def create_database(dbvalues):
 
 def drop_database(dbvalues):
     '''
-    Yhis function deletes a database
+    This function deletes a database
     :param dbvalues: a dictionary containing configurations for the database to be deleted
+    Example: {'user': 'root', 'host':'127.0.0.1', 'password': '1234', 'name': 'EmployeeDatabase'}
     :return: True if the database was deleted, False otherwise
     '''
     try:
@@ -128,7 +156,10 @@ def read_from_database(dbvalues, readparameters):
         todate = readparameters['todate']
         totime = readparameters['totime']
 
-        nestedsql = "(SELECT * FROM measurements WHERE date BETWEEN '%s' AND '%s' AND time BETWEEN '%s' AND '%s' AND c_id = %d)" % (fromdate, todate, fromtime, totime, id)
+        if fromtime == totime:
+            totime = totime + ".999999"
+
+        nestedsql = "(SELECT * FROM measurements WHERE date >= '%s' AND date <= '%s' AND time >= '%s' AND time <= '%s' AND c_id = %d)" % (fromdate, todate, fromtime, totime, id)
         sql = "SELECT temp.c_id, name, date, time, measurementvalue FROM %s AS temp INNER JOIN channels ON channels.id = temp.c_id ORDER BY date, time" % (nestedsql,)
         cursor.execute(sql)
         result = cursor.fetchall()
@@ -174,5 +205,4 @@ def add_to_database(dbvalues, list_of_items):
         print("Something went wrong, read the error message")
         return False
 
-dbv = configinterface.read_config('config.cfg', 'default')
-change_channel_name(dbv, 'newname', 2)
+
