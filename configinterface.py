@@ -9,7 +9,8 @@ def read_config(file, section):
     This function reads the options for a specified section in a specified configuration file
     :param file: the file to read from
     :param section: the section to read from 
-    :return: a dictionary containing the configuration options with corresponding value
+    :return: a dictionary with configuration options as keys and optionvalues as values
+    Example: {'host': '127.0.0.1', 'user': 'root', 'password': '1234', 'name': Measurements}
     '''
     try:
         reader = configparser.ConfigParser()                                                    #Reads from the configuration file

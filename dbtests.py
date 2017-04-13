@@ -47,16 +47,8 @@ class TestLocalDatabase(unittest.TestCase):
             res = read_from_database(dbvalues=exp, readparameters=parameterlist)
             self.assertIsNotNone(res)
         drop_database(exp)
-    '''
-    def test_change_channel_name(self):
-        exp = read_config(file='config.cfg', section='Test')
-        create_database(exp)
-        newname = 'Whatever'
-        for i in range(1, 61):
-            sql = "update channels set name = %s where id = %d" % (newname, i)
 
-        change_channel_name()
-    '''
+
 
 
 if __name__ == '__main__':

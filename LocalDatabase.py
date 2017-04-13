@@ -5,6 +5,7 @@ This module acts as an interface to the local database
 import pymysql
 import time
 import datetime
+import configinterface
 
 
 
@@ -18,9 +19,9 @@ def change_channel_name(dbvalues, name, id):
     :return: True if the name was changed, False otherwise
     '''
     try:
-        conn = pymysql.connect(user=dbvalues['user'], host=dbvalues['host'], password=dbvalues['password'])
+        conn = pymysql.connect(user=dbvalues['user'], host=dbvalues['host'], password=dbvalues['password'], database=dbvalues['name'])
         cursor = conn.cursor()
-        sql = "update channels set name = %s where id = %d" % (name, id)
+        sql = "update channels set name = '%s' where id = %d" % (name, id)
         cursor.execute(sql)
         conn.commit()
         conn.close()
@@ -172,3 +173,6 @@ def add_to_database(dbvalues, list_of_items):
         print(err)
         print("Something went wrong, read the error message")
         return False
+
+dbv = configinterface.read_config('config.cfg', 'default')
+change_channel_name(dbv, 'newname', 2)
