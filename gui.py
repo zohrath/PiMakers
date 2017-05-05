@@ -17,14 +17,21 @@ class Window(QtWidgets.QMainWindow):
     def set_connections(self):
         self.widgetlist.widget(self.widgetlist.mainmenuindex).quitSignal.connect(self.close)
         self.widgetlist.widget(self.widgetlist.mainmenuindex).sessionSignal.connect(self.showdatabasesettings)
+        self.widgetlist.widget(self.widgetlist.mainmenuindex).helpSignal.connect(self.showhelppage)
 
         self.widgetlist.widget(self.widgetlist.databasesettingsindex).cancelPressed.connect(self.showmainmenu)
+        self.widgetlist.widget(self.widgetlist.helppageindex).cancelPressed.connect(self.showmainmenu)
         #self.widgetlist.widget(self.widgetlist.databasesettingsindex).okPressed.connect(self.showchannelsettings)
 
         #self.widgetlist.widget(self.widgetlist.channelsettingsindex).backPressed.connect(self.showdatabasesettings)
 
+
+
     def showdatabasesettings(self):
         self.widgetlist.setCurrentIndex(self.widgetlist.databasesettingsindex)
+
+    def showhelppage(self):
+        self.widgetlist.setCurrentIndex(self.widgetlist.helppageindex)
 
     def showmainmenu(self):
         self.widgetlist.setCurrentIndex(self.widgetlist.mainmenuindex)

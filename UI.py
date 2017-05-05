@@ -204,6 +204,45 @@ class Databaseform(QtWidgets.QWidget):
         return font
 
 
+
+class helpPages(QtWidgets.QWidget):
+
+    cancelPressed = QtCore.pyqtSignal()
+
+    def __init__(self, parent=None):
+        QtWidgets.QStackedWidget.__init__(self, parent)
+
+
+        buttons = QtWidgets.QDialogButtonBox()
+        cancelbutton = buttons.addButton('Tillbaka', buttons.RejectRole)
+        cancelbutton.setMinimumSize(300, 100)
+        cancelbutton.clicked.connect(self.backToMain)
+
+        font = QtGui.QFont()
+        font.setFamily("Ubuntu")
+        font.setPointSize(18)
+
+        self.helplabel = QtWidgets.QLabel("There's no help. Alex Jones be with ye.")
+        self.helplabel.setFont(font)
+        self.helplabel.setMinimumSize(50, 50)
+
+        vbox = QtWidgets.QVBoxLayout()
+        vbox.addWidget(self.helplabel)
+        vbox.addWidget(buttons)
+
+        hbox = QtWidgets.QHBoxLayout()
+        hbox.addStretch(1)
+        hbox.addLayout(vbox)
+        hbox.addStretch(1)
+
+        self.setLayout(hbox)
+
+
+
+    def backToMain(self):
+        self.cancelPressed.emit()
+
+
 class UIpages(QtWidgets.QStackedWidget):
     def __init__(self, parent=None):
         QtWidgets.QStackedWidget.__init__(self, parent)
@@ -214,12 +253,11 @@ class UIpages(QtWidgets.QStackedWidget):
         databasesettings = Databasesettingslayout()
         self.databasesettingsindex = self.addWidget(databasesettings)
 
+        helppage = helpPages()
+        self.helppageindex = self.addWidget(helppage)
+
         #channelsettings = Channelsettings()
         #self.channelsettingsindex = self.addWidget(channelsettings)
-
-
-
-
 
 
 
@@ -227,24 +265,30 @@ class Mainmenu(QtWidgets.QWidget):
 
     quitSignal = QtCore.pyqtSignal()
     sessionSignal = QtCore.pyqtSignal()
+    helpSignal = QtCore.pyqtSignal()
 
     def __init__(self, parent=None):
         QtWidgets.QWidget.__init__(self, parent)
 
         startButton = QtWidgets.QPushButton("Starta ny mätning")
-        startButton.setMinimumSize(500, 200)
+        startButton.setMinimumSize(500, 100)
         startButton.clicked.connect(self.newSession)
 
         visualizeButton = QtWidgets.QPushButton("Visa mätningar")
-        visualizeButton.setMinimumSize(500, 200)
+        visualizeButton.setMinimumSize(500, 100)
+
+        helpButton = QtWidgets.QPushButton("Hjälp / Inte FAQ")
+        helpButton.setMinimumSize(500, 100)
+        helpButton.clicked.connect(self.help)
 
         quitButton = QtWidgets.QPushButton("Avsluta")
-        quitButton.setMinimumSize(500, 200)
+        quitButton.setMinimumSize(500, 100)
         quitButton.clicked.connect(self.quit)
 
         vbox = QtWidgets.QVBoxLayout()
         vbox.addWidget(startButton)
         vbox.addWidget(visualizeButton)
+        vbox.addWidget(helpButton)
         vbox.addWidget(quitButton)
 
         hbox = QtWidgets.QHBoxLayout()
@@ -259,6 +303,9 @@ class Mainmenu(QtWidgets.QWidget):
 
     def newSession(self):
         self.sessionSignal.emit()
+
+    def help(self):
+        self.helpSignal.emit()
 
 
 if __name__=='__main__':
