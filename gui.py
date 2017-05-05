@@ -3,70 +3,43 @@ from PyQt5.QtCore import *
 from PyQt5 import QtGui
 from PyQt5 import QtWidgets
 from PyQt5 import QtCore
-
-class Sessionwindow():
-    def __init__(self):
-        self.window = QtWidgets.QDialog()
-        self.initUI()
-
-    def initUI(self):
-
-        testbutton = QtWidgets.QPushButton("Test")
-        testbutton.setMinimumSize(500, 200)
+import UI
 
 
-        self.window.setFixedSize(200, 200)
+class Window(QtWidgets.QMainWindow):
+    def __init__(self, parent=None):
+        QtWidgets.QMainWindow.__init__(self, parent)
+        self.widgetlist = UI.UIpages()
+        self.widgetlist.setCurrentIndex(self.widgetlist.mainmenuindex)
+        self.setCentralWidget(self.widgetlist)
+        self.set_connections()
 
-        vbox = QtWidgets.QVBoxLayout()
-        vbox.addWidget(testbutton)
-        self.window.setLayout(vbox)
+    def set_connections(self):
+        self.widgetlist.widget(self.widgetlist.mainmenuindex).quitSignal.connect(self.close)
+        self.widgetlist.widget(self.widgetlist.mainmenuindex).sessionSignal.connect(self.showdatabasesettings)
+
+        self.widgetlist.widget(self.widgetlist.databasesettingsindex).cancelPressed.connect(self.showmainmenu)
+        self.widgetlist.widget(self.widgetlist.databasesettingsindex).okPressed.connect(self.showchannelsettings)
+
+        self.widgetlist.widget(self.widgetlist.channelsettingsindex).backPressed.connect(self.showdatabasesettings)
+
+    def showdatabasesettings(self):
+        self.widgetlist.setCurrentIndex(self.widgetlist.databasesettingsindex)
+
+    def showmainmenu(self):
+        self.widgetlist.setCurrentIndex(self.widgetlist.mainmenuindex)
+
+    def showchannelsettings(self):
+        self.widgetlist.setCurrentIndex(self.widgetlist.channelsettingsindex)
 
 
 
-
-
-class Mainmenu():
-    def __init__(self, app):
-        self.app = app
-        self.initUI()
-
-
-    def initUI(self):
-
-        startButton = QtWidgets.QPushButton("Starta ny mätning")
-        startButton.setMinimumSize(500, 200)
-        startButton.clicked.connect(self.switch)
-
-        visualizeButton = QtWidgets.QPushButton("Visa mätningar")
-        visualizeButton.setMinimumSize(500, 200)
-
-        quitButton = QtWidgets.QPushButton("Avsluta")
-        quitButton.setMinimumSize(500,200)
-        quitButton.clicked.connect(self.app.quit)
-
-        vbox = QtWidgets.QVBoxLayout()
-        vbox.addWidget(startButton)
-        vbox.addWidget(visualizeButton)
-        vbox.addWidget(quitButton)
-
-        hbox = QtWidgets.QHBoxLayout()
-        hbox.addStretch(1)
-        hbox.addLayout(vbox)
-        hbox.addStretch(1)
-
-        self.w = QtWidgets.QWidget()
-        self.w.setLayout(hbox)
-
-    def switch(self):
-        self.w.hide()
-        nd = Sessionwindow()
-        nd.window.show()
 
 
 
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication(sys.argv)
-    main = Mainmenu(app)
-    main.w.showFullScreen()
+    window = Window()
+    window.showFullScreen()
     sys.exit(app.exec_())

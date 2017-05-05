@@ -4,26 +4,29 @@ import configparser
 
 
 
+
 def read_config(file, section):
-    '''
-    This function reads the options for a specified section in a specified configuration file
-    :param file: the file to read from
-    :param section: the section to read from 
+    """
+    Reads the options for a specified section in a specified configuration file
+    :param file: a string containing the name of the file to be read
+    :param section: a string containing the name of the section to be read 
     :return: a dictionary with configuration options as keys and optionvalues as values
     Example: {'host': '127.0.0.1', 'user': 'root', 'password': '1234', 'name': Measurements}
-    '''
+    """
     try:
-        reader = configparser.ConfigParser()                                                    #Reads from the configuration file
+        reader = configparser.ConfigParser()                                    # Reads from the configuration file
         reader.read(file)
-        values = {}
-        if reader.has_section(section):
-            list = reader.items(section)
+
+        if reader.has_section(section):                                         # Checks if the section exists
+            valuelist = reader.items(section)
             configs = {}
-            for item in list:
+            for item in valuelist:                                              # Creates a dictionary of the values
                 configs[item[0]] = item[1]
             return configs
-    except:
-        print('wrong')
+    except TypeError as T:
+        print('read_config Typerror:')
+        print(T)
+        raise T
 
 def set_config(file, section, optionvaluepairs):
     '''
