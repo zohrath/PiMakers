@@ -18,9 +18,11 @@ class Window(QtWidgets.QMainWindow):
         self.widgetlist.widget(self.widgetlist.mainmenuindex).quitSignal.connect(self.close)
         self.widgetlist.widget(self.widgetlist.mainmenuindex).sessionSignal.connect(self.showdatabasesettings)
         self.widgetlist.widget(self.widgetlist.mainmenuindex).helpSignal.connect(self.showhelppage)
+        self.widgetlist.widget(self.widgetlist.mainmenuindex).currentSignal.connect(self.showcurrentsession)
 
         self.widgetlist.widget(self.widgetlist.databasesettingsindex).cancelPressed.connect(self.showmainmenu)
         self.widgetlist.widget(self.widgetlist.helppageindex).cancelPressed.connect(self.showmainmenu)
+        self.widgetlist.widget(self.widgetlist.currentsessionindex).cancelPressed.connect(self.showmainmenu)
         #self.widgetlist.widget(self.widgetlist.databasesettingsindex).okPressed.connect(self.showchannelsettings)
 
         #self.widgetlist.widget(self.widgetlist.channelsettingsindex).backPressed.connect(self.showdatabasesettings)
@@ -35,6 +37,9 @@ class Window(QtWidgets.QMainWindow):
 
     def showmainmenu(self):
         self.widgetlist.setCurrentIndex(self.widgetlist.mainmenuindex)
+
+    def showcurrentsession(self):
+        self.widgetlist.setCurrentIndex(self.widgetlist.currentsessionindex)
 
     #def showchannelsettings(self):
     #    self.widgetlist.setCurrentIndex(self.widgetlist.channelsettingsindex)
