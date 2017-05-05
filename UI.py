@@ -30,20 +30,20 @@ class Databasesettingslayout(QtWidgets.QWidget):
         infostring = QtWidgets.QLabel("Mätvärden kommer att sparas lokalt, vill du även spara till en annan databas?")
         infostring.setFont(font)
 
-        databaseform = Databaseform()
+        self.databaseform = Databaseform()
 
         yesbutton = QtWidgets.QRadioButton()
         yesbutton.setText("Ja")
         yesbutton.setAutoExclusive(True)
         yesbutton.setCheckable(True)
-        yesbutton.toggled.connect(databaseform.useRemote)
+        yesbutton.toggled.connect(self.databaseform.useRemote)
         yesbutton.toggled.connect(self.setRemoteTrue)
 
         nobutton = QtWidgets.QRadioButton()
         nobutton.setText("Nej")
         nobutton.setAutoExclusive(True)
         nobutton.setCheckable(True)
-        nobutton.toggled.connect(databaseform.dontUseRemote)
+        nobutton.toggled.connect(self.databaseform.dontUseRemote)
         nobutton.toggled.connect(self.setRemoteFalse)
         nobutton.setChecked(True)
 
@@ -58,7 +58,7 @@ class Databasesettingslayout(QtWidgets.QWidget):
         vbox.addStretch(1)
         vbox.addWidget(infostring)
         vbox.addWidget(buttongroup)
-        vbox.addWidget(databaseform)
+        vbox.addWidget(self.databaseform)
         vbox.addWidget(buttons)
         vbox.addStretch(2)
 
@@ -80,7 +80,14 @@ class Databasesettingslayout(QtWidgets.QWidget):
 
     def nextPage(self):
         if self.remote:
-            configinterface.set_config('config.cfg', )
+
+            host = self.databaseform.host.text()
+            user = self.databaseform.user.text()
+            port = self.databaseform.port.text()
+            name = self.databaseform.database.text()
+            password = self.databaseform.password.text()
+            newremotevalues = {'host': host, 'user': user, 'port': port, 'name': name, 'password': password}
+            configinterface.set_config('config.cfg', 'remote', newremotevalues)
         self.okPressed.emit()
 
 
