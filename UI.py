@@ -5,7 +5,95 @@ from PyQt5 import QtGui
 import configinterface
 import sys
 
+class Channelsettings(QtWidgets.QWidget):
 
+    backPressed = QtCore.pyqtSignal()
+    okPressed = QtCore.pyqtSignal()
+
+    def __init__(self, parent=None):
+        QtWidgets.QWidget.__init__(self, parent)
+        self.channels = {}
+
+        buttons = QtWidgets.QDialogButtonBox()
+        okbutton = buttons.addButton('Starta', buttons.AcceptRole)
+        cancelbutton = buttons.addButton('Tillbaka', buttons.RejectRole)
+        okbutton.setMinimumSize(300, 100)
+        #okbutton.clicked.connect(self.nextPage)
+        cancelbutton.setMinimumSize(300, 100)
+        cancelbutton.clicked.connect(self.goback)
+
+        tableWidget = QtWidgets.QTableWidget()
+        tableWidget.setGeometry(QtCore.QRect(170, 30, 260, 411))
+        tableWidget.setColumnCount(4)
+        tableWidget.setObjectName("tableWidget")
+        tableWidget.setRowCount(60)
+
+        labelB = QtWidgets.QLabel("Hej")
+        labelB.setGeometry(QtCore.QRect(30, 20, 60, 16))
+        labelB.setObjectName("label")
+
+        for i in range(60):
+            checkbox = QtWidgets.QCheckBox()
+            tableWidget.setCellWidget(i, 0, checkbox)
+
+        index = 100
+        for i in range(1, 21):
+            vheadertext = "%d" % (i+index)
+            vheader = QtWidgets.QTableWidgetItem(vheadertext)
+            tableWidget.setVerticalHeaderItem(i-1, vheader)
+        index = 200
+        for i in range(1, 21):
+            vheadertext = "%d" % (i+index)
+            vheader = QtWidgets.QTableWidgetItem(vheadertext)
+            tableWidget.setVerticalHeaderItem(i+20-1, vheader)
+        index = 300
+        for i in range(1, 21):
+            vheadertext = "%d" % (i+index)
+            vheader = QtWidgets.QTableWidgetItem(vheadertext)
+            tableWidget.setVerticalHeaderItem(i+40-1, vheader)
+
+
+        useheader = QtWidgets.QTableWidgetItem("Använd:")
+        unitheader = QtWidgets.QTableWidgetItem("Enhet")
+        toleranceheader = QtWidgets.QTableWidgetItem("Tolerans")
+        nameheader = QtWidgets.QTableWidgetItem("Namn")
+        tableWidget.setHorizontalHeaderItem(0, useheader)
+        tableWidget.setHorizontalHeaderItem(1, unitheader)
+        tableWidget.setHorizontalHeaderItem(2, toleranceheader)
+        tableWidget.setHorizontalHeaderItem(3, nameheader)
+
+        tableWidget.verticalHeader().setCascadingSectionResizes(False)
+        tableWidget.setColumnWidth(0, 50)
+        tableWidget.setColumnWidth(1, 50)
+        tableWidget.setColumnWidth(2, 75)
+        tableWidget.setColumnWidth(3, 50)
+
+        message = self.setmessage()
+
+        vbox = QtWidgets.QVBoxLayout()
+        vbox.addStretch(1)
+        vbox.addWidget(message)
+        vbox.addWidget(tableWidget)
+        vbox.addWidget(buttons)
+        vbox.addStretch(2)
+
+        hbox = QtWidgets.QHBoxLayout()
+        hbox.addStretch(1)
+        hbox.addLayout(vbox)
+        hbox.addStretch(1)
+
+        self.setLayout(hbox)
+
+    def goback(self):
+        self.backPressed.emit()
+
+    def setmessage(self):
+        font = QtGui.QFont()
+        font.setFamily("Ubuntu")
+        font.setPointSize(18)
+        message = QtWidgets.QLabel("Välj vilka kanaler som ska användas i mätningen")
+        message.setFont(font)
+        return message
 
 class Databasesettingslayout(QtWidgets.QWidget):
 
@@ -244,8 +332,6 @@ class helpPages(QtWidgets.QWidget):
 
         self.setLayout(hbox)
 
-
-
     def backToMain(self):
         self.cancelPressed.emit()
 
@@ -263,8 +349,8 @@ class UIpages(QtWidgets.QStackedWidget):
         helppage = helpPages()
         self.helppageindex = self.addWidget(helppage)
 
-        #channelsettings = Channelsettings()
-        #self.channelsettingsindex = self.addWidget(channelsettings)
+        channelsettings = Channelsettings()
+        self.channelsettingsindex = self.addWidget(channelsettings)
 
 
 
