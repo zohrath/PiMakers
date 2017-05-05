@@ -214,83 +214,13 @@ class UIpages(QtWidgets.QStackedWidget):
         databasesettings = Databasesettingslayout()
         self.databasesettingsindex = self.addWidget(databasesettings)
 
-        channelsettings = Channelsettings()
-        self.channelsettingsindex = self.addWidget(channelsettings)
+        #channelsettings = Channelsettings()
+        #self.channelsettingsindex = self.addWidget(channelsettings)
 
 
 
 
-class Channelsettings(QtWidgets.QWidget):
 
-    backPressed = QtCore.pyqtSignal()
-    okPressed = QtCore.pyqtSignal()
-
-    def __init__(self, parent=None):
-        QtWidgets.QWidget.__init__(self, parent)
-        self.channels = {}
-
-        buttons = QtWidgets.QDialogButtonBox()
-        okbutton = buttons.addButton('Starta', buttons.AcceptRole)
-        cancelbutton = buttons.addButton('Tillbaka', buttons.RejectRole)
-        okbutton.setMinimumSize(300, 100)
-        #okbutton.clicked.connect(self.nextPage)
-        cancelbutton.setMinimumSize(300, 100)
-        cancelbutton.clicked.connect(self.goback)
-
-
-        message = self.setmessage()
-        channellist = self.setchannellist()
-
-        vbox = QtWidgets.QVBoxLayout()
-        vbox.addStretch(1)
-        vbox.addWidget(message)
-        vbox.addWidget(channellist)
-        vbox.addWidget(buttons)
-        vbox.addStretch(2)
-
-        hbox = QtWidgets.QHBoxLayout()
-        hbox.addStretch(1)
-        hbox.addLayout(vbox)
-        hbox.addStretch(1)
-
-        self.setLayout(hbox)
-
-    def goback(self):
-        self.backPressed.emit()
-
-    def setmessage(self):
-        font = QtGui.QFont()
-        font.setFamily("Ubuntu")
-        font.setPointSize(18)
-        message = QtWidgets.QLabel("Välj vilka kanaler som ska användas i mätningen")
-        message.setFont(font)
-        return message
-
-    def setchannellist(self):
-
-        table = QtWidgets.QTableWidget()
-        table.setRowCount(20)
-        table.setColumnCount(4)
-
-
-        useheader = QtWidgets.QTableWidgetItem("Använd:")
-        unitheader = QtWidgets.QTableWidgetItem("Enhet")
-        toleranceheader = QtWidgets.QTableWidgetItem("Tolerans")
-        nameheader = QtWidgets.QTableWidgetItem("Namn")
-        table.setHorizontalHeaderItem(0, useheader)
-        table.setHorizontalHeaderItem(1, unitheader)
-        table.setHorizontalHeaderItem(2, toleranceheader)
-        table.setHorizontalHeaderItem(3, nameheader)
-
-        for i in range(0, 21):
-            vheadertext = "%d" % (i+101,)
-            vheader = QtWidgets.QTableWidgetItem(vheadertext)
-            table.setVerticalHeaderItem(i, vheader)
-            button = QtWidgets.QCheckBox()
-
-            table.setCellWidget(i, 0, button)
-
-        return table
 
 
 class Mainmenu(QtWidgets.QWidget):
