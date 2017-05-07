@@ -64,7 +64,11 @@ class Channelsettings(QtWidgets.QWidget):
                     float(channeltolerance)
 
             parser = configparser.ConfigParser()
+            with open('config.cfg', 'r+') as r:
+                parser.read_file(r)
             parser.remove_section('channels')
+            with open('config.cfg', 'w+') as w:
+                parser.write(w)
             configinterface.set_config('config.cfg', 'channels', channellist)
             if channellist == {}:
                 nochannels = "Du måste välja minst en kanal!"
@@ -355,7 +359,7 @@ class currentSession(QtWidgets.QWidget):
     cancelPressed = QtCore.pyqtSignal()
 
     def __init__(self, parent=None):
-        QtWidgets.QStackedWidget.__init__(self, parent)
+        QtWidgets.QWidget.__init__(self, parent)
 
 
         buttons = QtWidgets.QDialogButtonBox()
@@ -391,7 +395,7 @@ class helpPages(QtWidgets.QWidget):
     cancelPressed = QtCore.pyqtSignal()
 
     def __init__(self, parent=None):
-        QtWidgets.QStackedWidget.__init__(self, parent)
+        QtWidgets.QWidget.__init__(self, parent)
 
 
         buttons = QtWidgets.QDialogButtonBox()
@@ -456,7 +460,7 @@ class Mainmenu(QtWidgets.QWidget):
         self.startButton.setMinimumSize(500, 100)
         self.startButton.clicked.connect(self.newSession)
 
-        self.currentButton = QtWidgets.QPushButton("Pågående mätning")
+        self.currentButton = QtWidgets.QPushButton("Avsluta pågående mätning")
         self.currentButton.setMinimumSize(500, 100)
         self.currentButton.clicked.connect(self.currentSession)
         self.currentButton.hide()
@@ -502,6 +506,10 @@ class Mainmenu(QtWidgets.QWidget):
     def sessionstarted(self):
         self.startButton.hide()
         self.currentButton.show()
+
+    def sessionended(self):
+        self.currentButton.hide()
+        self.startButton.show()
 
 
 
