@@ -238,6 +238,8 @@ class Currentsessionplot(FC):
         #self.axes.set_xticks(ticks)
         self.axes.plot(xaxisvalues, yaxisvalues)
         self.axes.set_xlim([rawstart, rawnow])
+        for tick in self.axes.get_xticklabels():
+            tick.set_rotation(20)                           # change this
         self.draw()
         self.timer.start(1000)
 
