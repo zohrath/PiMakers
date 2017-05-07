@@ -3,18 +3,12 @@ This is the main program of the system
 '''
 
 import datetime
+import configinterface
 
 if __name__ == '__main__':
 
+list = {}
+for i in range(1, 61):
 
-    start = datetime.datetime.now()
-    print("Hello")
-    end = datetime.datetime.now()
-    elapsed = end - start
-    print(elapsed.seconds)
+    list[]
 
-    while True:
-        if ((end - start).seconds > 0):
-            start = datetime.datetime.now()
-            print("More than 1 second elapsed")
-        end = datetime.datetime.now()

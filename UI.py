@@ -2,11 +2,18 @@
 from PyQt5 import QtWidgets
 from PyQt5 import QtCore
 from PyQt5 import QtGui
+from PyQt5 import QtChart
 import configinterface
 import sys
+import threading
+import Database
+import configparser
+import queue
+import pymysql
+
+
 
 class Channelsettings(QtWidgets.QWidget):
-
     backPressed = QtCore.pyqtSignal()
     okPressed = QtCore.pyqtSignal()
 
@@ -15,59 +22,14 @@ class Channelsettings(QtWidgets.QWidget):
         self.channels = {}
 
         buttons = QtWidgets.QDialogButtonBox()
-        okbutton = buttons.addButton('Starta', buttons.AcceptRole)
+        okbutton = buttons.addButton('Nästa', buttons.AcceptRole)
         cancelbutton = buttons.addButton('Tillbaka', buttons.RejectRole)
         okbutton.setMinimumSize(300, 100)
-        #okbutton.clicked.connect(self.nextPage)
+        okbutton.clicked.connect(self.nextPage)
         cancelbutton.setMinimumSize(300, 100)
         cancelbutton.clicked.connect(self.goback)
 
-        tableWidget = QtWidgets.QTableWidget()
-        tableWidget.setGeometry(QtCore.QRect(170, 30, 260, 411))
-        tableWidget.setColumnCount(4)
-        tableWidget.setObjectName("tableWidget")
-        tableWidget.setRowCount(60)
-
-        labelB = QtWidgets.QLabel("Hej")
-        labelB.setGeometry(QtCore.QRect(30, 20, 60, 16))
-        labelB.setObjectName("label")
-
-        for i in range(60):
-            checkbox = QtWidgets.QCheckBox()
-            tableWidget.setCellWidget(i, 0, checkbox)
-
-        index = 100
-        for i in range(1, 21):
-            vheadertext = "%d" % (i+index)
-            vheader = QtWidgets.QTableWidgetItem(vheadertext)
-            tableWidget.setVerticalHeaderItem(i-1, vheader)
-        index = 200
-        for i in range(1, 21):
-            vheadertext = "%d" % (i+index)
-            vheader = QtWidgets.QTableWidgetItem(vheadertext)
-            tableWidget.setVerticalHeaderItem(i+20-1, vheader)
-        index = 300
-        for i in range(1, 21):
-            vheadertext = "%d" % (i+index)
-            vheader = QtWidgets.QTableWidgetItem(vheadertext)
-            tableWidget.setVerticalHeaderItem(i+40-1, vheader)
-
-
-        useheader = QtWidgets.QTableWidgetItem("Använd:")
-        unitheader = QtWidgets.QTableWidgetItem("Enhet")
-        toleranceheader = QtWidgets.QTableWidgetItem("Tolerans")
-        nameheader = QtWidgets.QTableWidgetItem("Namn")
-        tableWidget.setHorizontalHeaderItem(0, useheader)
-        tableWidget.setHorizontalHeaderItem(1, unitheader)
-        tableWidget.setHorizontalHeaderItem(2, toleranceheader)
-        tableWidget.setHorizontalHeaderItem(3, nameheader)
-
-        tableWidget.verticalHeader().setCascadingSectionResizes(False)
-        tableWidget.setColumnWidth(0, 50)
-        tableWidget.setColumnWidth(1, 50)
-        tableWidget.setColumnWidth(2, 75)
-        tableWidget.setColumnWidth(3, 50)
-
+        tableWidget = self.setchanneltable()
         message = self.setmessage()
 
         vbox = QtWidgets.QVBoxLayout()
@@ -87,6 +49,43 @@ class Channelsettings(QtWidgets.QWidget):
     def goback(self):
         self.backPressed.emit()
 
+    def nextPage(self):
+        channellist = {}
+        try:
+            for i in range(60):
+                item = self.tableWidget.item(i, 0)
+                if item.checkState() == QtCore.Qt.Checked:
+                    channelid = "%s" % (self.tableWidget.verticalHeaderItem(i).text(),)
+                    channelunit = "%s" % (self.tableWidget.item(i, 1).text(),)
+                    channeltolerance = "%s" % (self.tableWidget.item(i, 2).text(),)
+                    channelname = "%s" % (self.tableWidget.item(i, 3).text(),)
+                    channellist[channelid] = str([channelname ,channelunit, channeltolerance])
+
+                    float(channeltolerance)
+
+            parser = configparser.ConfigParser()
+            parser.remove_section('channels')
+            configinterface.set_config('config.cfg', 'channels', channellist)
+            if channellist == {}:
+                nochannels = "Du måste välja minst en kanal!"
+                self.messageToUser(nochannels)
+            else:
+                self.okPressed.emit()
+        except AttributeError:
+            textmissing = "Kanal %s saknar nödvändig information!" % (channelid)
+            self.messageToUser(textmissing)
+        except ValueError:
+            wronginputtype = "Kanal %s har fel typ av tolerans, tolerans ska vara ett flyttal t.ex. 42.0" % (channelid)
+            self.messageToUser(wronginputtype)
+
+
+    def messageToUser(self, messagetext):
+        message = QtWidgets.QMessageBox()
+        message.setMinimumSize(1000, 800)
+        message.setText(messagetext)
+        message.setStandardButtons(QtWidgets.QMessageBox.Close)
+        message.exec_()
+
     def setmessage(self):
         font = QtGui.QFont()
         font.setFamily("Ubuntu")
@@ -94,6 +93,60 @@ class Channelsettings(QtWidgets.QWidget):
         message = QtWidgets.QLabel("Välj vilka kanaler som ska användas i mätningen")
         message.setFont(font)
         return message
+
+    def setchanneltable(self):
+
+        self.tableWidget = QtWidgets.QTableWidget()
+        self.tableWidget.setGeometry(QtCore.QRect(170, 30, 260, 411))
+        self.tableWidget.setColumnCount(4)
+        self.tableWidget.setObjectName("tableWidget")
+        self.tableWidget.setRowCount(60)
+
+
+        for i in range(60):
+            checkbox = QtWidgets.QTableWidgetItem()
+            checkbox.setFlags(QtCore.Qt.ItemIsUserCheckable | QtCore.Qt.ItemIsEnabled)
+            checkbox.setCheckState(QtCore.Qt.Unchecked)
+            self.tableWidget.setItem(i, 0, checkbox)
+
+            index = 100
+            for i in range(1, 21):
+                vheadertext = "%d" % (i + index)
+                vheader = QtWidgets.QTableWidgetItem(vheadertext)
+                self.tableWidget.setVerticalHeaderItem(i - 1, vheader)
+
+            index = 200
+            for i in range(1, 21):
+                vheadertext = "%d" % (i + index)
+                vheader = QtWidgets.QTableWidgetItem(vheadertext)
+                self.tableWidget.setVerticalHeaderItem(20+i - 1, vheader)
+
+            index = 300
+            for i in range(1, 21):
+                vheadertext = "%d" % (i + index)
+                vheader = QtWidgets.QTableWidgetItem(vheadertext)
+                self.tableWidget.setVerticalHeaderItem(40+i - 1, vheader)
+
+        useheader = QtWidgets.QTableWidgetItem("Använd:")
+        unitheader = QtWidgets.QTableWidgetItem("Enhet")
+        toleranceheader = QtWidgets.QTableWidgetItem("Tolerans")
+        nameheader = QtWidgets.QTableWidgetItem("Namn")
+        self.tableWidget.setHorizontalHeaderItem(0, useheader)
+        self.tableWidget.setHorizontalHeaderItem(1, unitheader)
+        self.tableWidget.setHorizontalHeaderItem(2, toleranceheader)
+        self.tableWidget.setHorizontalHeaderItem(3, nameheader)
+
+        self.tableWidget.verticalHeader().setCascadingSectionResizes(False)
+        self.tableWidget.setColumnWidth(0, 100)
+        self.tableWidget.setColumnWidth(1, 100)
+        self.tableWidget.setColumnWidth(2, 100)
+        self.tableWidget.setColumnWidth(3, 100)
+
+        return self.tableWidget
+
+
+
+
 
 class Databasesettingslayout(QtWidgets.QWidget):
 
@@ -105,7 +158,7 @@ class Databasesettingslayout(QtWidgets.QWidget):
 
 
         buttons = QtWidgets.QDialogButtonBox()
-        okbutton = buttons.addButton('Nästa', buttons.AcceptRole)
+        okbutton = buttons.addButton('Starta', buttons.AcceptRole)
         cancelbutton = buttons.addButton('Tillbaka', buttons.RejectRole)
         okbutton.setMinimumSize(300, 100)
         okbutton.clicked.connect(self.nextPage)
@@ -168,7 +221,6 @@ class Databasesettingslayout(QtWidgets.QWidget):
 
     def nextPage(self):
         if self.remote:
-
             host = self.databaseform.host.text()
             user = self.databaseform.user.text()
             port = self.databaseform.port.text()
@@ -176,9 +228,8 @@ class Databasesettingslayout(QtWidgets.QWidget):
             password = self.databaseform.password.text()
             newremotevalues = {'host': host, 'user': user, 'port': port, 'name': name, 'password': password}
             configinterface.set_config('config.cfg', 'remote', newremotevalues)
+
         self.okPressed.emit()
-
-
 
 class Databaseform(QtWidgets.QWidget):
 
@@ -375,20 +426,20 @@ class UIpages(QtWidgets.QStackedWidget):
     def __init__(self, parent=None):
         QtWidgets.QStackedWidget.__init__(self, parent)
 
-        mainmenu = Mainmenu()
-        self.mainmenuindex = self.addWidget(mainmenu)
+        self.mainmenu = Mainmenu()
+        self.mainmenuindex = self.addWidget(self.mainmenu)
 
-        databasesettings = Databasesettingslayout()
-        self.databasesettingsindex = self.addWidget(databasesettings)
+        self.databasesettings = Databasesettingslayout()
+        self.databasesettingsindex = self.addWidget(self.databasesettings)
 
-        helppage = helpPages()
-        self.helppageindex = self.addWidget(helppage)
+        self.helppage = helpPages()
+        self.helppageindex = self.addWidget(self.helppage)
 
-        channelsettings = Channelsettings()
-        self.channelsettingsindex = self.addWidget(channelsettings)
+        self.channelsettings = Channelsettings()
+        self.channelsettingsindex = self.addWidget(self.channelsettings)
 
-        current = currentSession()
-        self.currentsessionindex = self.addWidget(current)
+        self.current = currentSession()
+        self.currentsessionindex = self.addWidget(self.current)
 
 
 class Mainmenu(QtWidgets.QWidget):
@@ -401,31 +452,33 @@ class Mainmenu(QtWidgets.QWidget):
     def __init__(self, parent=None):
         QtWidgets.QWidget.__init__(self, parent)
 
-        startButton = QtWidgets.QPushButton("Starta nya mätning")
-        startButton.setMinimumSize(500, 100)
-        startButton.clicked.connect(self.newSession)
+        self.startButton = QtWidgets.QPushButton("Starta nya mätning")
+        self.startButton.setMinimumSize(500, 100)
+        self.startButton.clicked.connect(self.newSession)
 
-        currentButton = QtWidgets.QPushButton("Pågående mätning")
-        currentButton.setMinimumSize(500, 100)
-        currentButton.clicked.connect(self.currentSession)
+        self.currentButton = QtWidgets.QPushButton("Pågående mätning")
+        self.currentButton.setMinimumSize(500, 100)
+        self.currentButton.clicked.connect(self.currentSession)
+        self.currentButton.hide()
 
-        visualizeButton = QtWidgets.QPushButton("Visa mätningar")
-        visualizeButton.setMinimumSize(500, 100)
+        self.visualizeButton = QtWidgets.QPushButton("Visa mätningar")
+        self.visualizeButton.setMinimumSize(500, 100)
 
-        helpButton = QtWidgets.QPushButton("Hjälp / Inte FAQ")
-        helpButton.setMinimumSize(500, 100)
-        helpButton.clicked.connect(self.help)
+        self.helpButton = QtWidgets.QPushButton("Hjälp / Inte FAQ")
+        self.helpButton.setMinimumSize(500, 100)
+        self.helpButton.clicked.connect(self.help)
 
-        quitButton = QtWidgets.QPushButton("Avsluta")
-        quitButton.setMinimumSize(500, 100)
-        quitButton.clicked.connect(self.quit)
+        self.quitButton = QtWidgets.QPushButton("Avsluta")
+        self.quitButton.setMinimumSize(500, 100)
+        self.quitButton.clicked.connect(self.quit)
+
 
         vbox = QtWidgets.QVBoxLayout()
-        vbox.addWidget(startButton)
-        vbox.addWidget(currentButton)
-        vbox.addWidget(visualizeButton)
-        vbox.addWidget(helpButton)
-        vbox.addWidget(quitButton)
+        vbox.addWidget(self.startButton)
+        vbox.addWidget(self.currentButton)
+        vbox.addWidget(self.visualizeButton)
+        vbox.addWidget(self.helpButton)
+        vbox.addWidget(self.quitButton)
 
         hbox = QtWidgets.QHBoxLayout()
         hbox.addStretch(1)
@@ -445,6 +498,11 @@ class Mainmenu(QtWidgets.QWidget):
 
     def help(self):
         self.helpSignal.emit()
+
+    def sessionstarted(self):
+        self.startButton.hide()
+        self.currentButton.show()
+
 
 
 if __name__=='__main__':
