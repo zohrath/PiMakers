@@ -63,7 +63,8 @@ class Main(QtWidgets.QMainWindow):
         self.widgetlist.setCurrentIndex(self.widgetlist.channelsettingsindex)
 
     def quit(self):
-        self.endcurrentsession()
+        if self.sessionrunning:
+            self.endcurrentsession()
         self.close()
 
     def endcurrentsession(self):
@@ -82,8 +83,8 @@ class Main(QtWidgets.QMainWindow):
             self.localdb = configinterface.read_config('config.cfg', 'default')
             self.remotedb = configinterface.read_config('config.cfg', 'remote')
             self.channellist = configinterface.read_config('config.cfg', 'channels')
-            print(self.channellist)
             self.sessionid = Database.start_new_session(dbvalues=self.localdb, name='placeholdername', channels=self.channellist)
+
             #self.remotesessionid = Database.start_new_session(dbvalues=self.remotedb, name='Placeholdername', channels=self.channellist)
             addthread = Addthread(localdb=self.localdb, remotedb=self.remotedb, sessionid=self.sessionid, shouldend=self.shouldend, channellist=self.channellist)
 
@@ -127,13 +128,30 @@ class Addthread(threading.Thread):
 
     def run(self):
 
-        while not self.shouldend.wait(1.0):
+        while not self.shouldend.wait(1.0):                             #change hard coded wait
             list = {}
             for item in self.channellist:
                 id = int(item)
                 list[id] = random.randint(1, 100)
             print(list)
             Database.add_to_database(self.localdb, list, self.sessionid)
+        self.shouldend.clear()
+
+
+class Addremotethread(threading.Thread):
+
+    def __init__(self, localdb, remotedb, channellist, shouldend):
+        self.localdb = localdb
+        self.remotedb = remotedb
+        self.sessionid = sessionid
+        self.shouldend = shouldend
+        self.channellist = channellist
+        threading.Thread.__init__(self)
+
+    def run(self):
+
+        while not self.shouldend.wait(10.0)                          #change hard coded wait
+
 
 
 
