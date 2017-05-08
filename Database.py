@@ -55,6 +55,78 @@ def remote_add_new_pi(dbvalues, name):
         raise E
 
 
+
+
+def remote_start_new_session(dbvalues, name, channels, piid):
+    """
+    Adds a new session to the database
+    :param dbvalues: a python dictionary containing MySQL connection values
+    Example: {'user': 'root', 'host': '127.0.0.1', 'password': '1234', 'name': 'databasename', 'port': '3306'} 
+    :param name: a string containging the name of the session to be stored in the database
+    :param channels: a dictionary containing the channel values to be added to the session
+    Example: {1: '['Temperature', 'celsius', 2.2], 2: ['Force', 'Newton', 4.3]'}
+    :return: The session id of the session created 
+    """
+    try:
+        conn = pymysql.connect(user=dbvalues['user'],                          # Establishes connection to the database
+                               host=dbvalues['host'],
+                               password=dbvalues['password'],
+                               database=dbvalues['name'],
+                               port=int(dbvalues['port']))
+
+        cursor = conn.cursor()
+
+        start = datetime.datetime.now()
+        startfractions = start.microsecond
+
+        insertsession = "insert into " \
+            "sessions(fk_pis_sessions, name_sessions, start_sessions, startfractions_sessions) " \
+            "values(%d, '%s', '%s', %f)" % (piid, name, start, startfractions)           # Insertion query for the sessions table
+
+        cursor.execute(insertsession)
+
+        readsession = "select last_insert_id()"                                # Retrieves the id given to the session
+        cursor.execute(readsession)
+        sessionid = cursor.fetchone()[0]
+
+
+        templist = []
+        print(channels)
+        for index in channels:
+            #channels[index] = ast.literal_eval(channels[index])
+
+            templist.append((sessionid,
+                             int(index),
+                             channels[index][1],
+                             channels[index][2],
+                             float(channels[index][3])))                       # Creates a list with all insertvalues
+        insertvalues = str(templist)                                           # Turns the list into a string
+        insertvalues = insertvalues[1:-1]                                      # Formats the string to query format
+
+        insert = "insert into " \
+            "session_channels(fk_sessions_session_channels, " \
+            "fk_channels_session_channels, " \
+            "channelname_session_channels, " \
+            "unit_session_channels, tolerance_session_channels) " \
+            "values" + insertvalues                                            # Inserts into session_channels table
+        cursor.execute(insert)
+
+        conn.commit()
+        conn.close()
+        return sessionid
+    except TypeError as T:
+        print('start_new_session Typeerror: ')
+        print(T)
+        raise T
+    except RuntimeError as R:
+        print('Runtimeerror: ')
+        print(R)
+        raise R
+    except pymysql.err.Error as E:
+        print('start_new _session MySQL error: ')
+        print(E)
+        raise E
+
 def start_new_session(dbvalues, name, channels):
     """
     Adds a new session to the database
@@ -62,7 +134,7 @@ def start_new_session(dbvalues, name, channels):
     Example: {'user': 'root', 'host': '127.0.0.1', 'password': '1234', 'name': 'databasename', 'port': '3306'} 
     :param name: a string containging the name of the session to be stored in the database
     :param channels: a dictionary containing the channel values to be added to the session
-    Example: {1: ['Temperature', 'celsius', 2.2], 2: ['Force', 'Newton', 4.3]}
+    Example: {1: '['Temperature', 'celsius', 2.2], 2: ['Force', 'Newton', 4.3]'}
     :return: The session id of the session created 
     """
     try:
@@ -87,15 +159,17 @@ def start_new_session(dbvalues, name, channels):
         cursor.execute(readsession)
         sessionid = cursor.fetchone()[0]
 
+
         templist = []
+        print(channels)
         for index in channels:
-            channels[index] = ast.literal_eval(channels[index])
-            print(channels[index])
+            #channels[index] = ast.literal_eval(channels[index])
+
             templist.append((sessionid,
                              int(index),
-                             channels[index][0],
                              channels[index][1],
-                             float(channels[index][2])))                       # Creates a list with all insertvalues
+                             channels[index][2],
+                             float(channels[index][3])))                       # Creates a list with all insertvalues
         insertvalues = str(templist)                                           # Turns the list into a string
         insertvalues = insertvalues[1:-1]                                      # Formats the string to query format
 
@@ -197,11 +271,14 @@ def create_remote_database(dbvalues):
 
             createsession = "create table " \
                 "sessions(id_sessions int primary key auto_increment, " \
+                "fk_pis_sessions int, " \
                 "name_sessions varchar(50), " \
                 "start_sessions datetime, " \
                 "startfractions_sessions float, " \
                 "end_sessions datetime," \
-                "endfractions_sessions float)"                                 # Creates the 'sessions' table
+                "endfractions_sessions float, " \
+                "foreign key (fk_pis_sessions) " \
+                "references pis(id_pis))"                                 # Creates the 'sessions' table
 
             createmeasurements = "create table " \
                 "measurements(fk_sessions_measurements int, " \
@@ -320,13 +397,11 @@ def create_local_database(dbvalues):
 
 
 
-            channels = []
-            for ii in range(1, 4):
-                index = 100*ii
-                for i in range(1, 21):
-                    insert = "Insert into " \
-                             "channels (id_channels) values(%d)" % (index+i)
-                    cursor.execute(insert)  # Populates the 'channels' table
+
+            for i in range(1, 61):
+                insert = "Insert into " \
+                        "channels (id_channels) values(%d)" % (i)
+                cursor.execute(insert)  # Populates the 'channels' table
 
             conn.commit()
             conn.close()
@@ -583,15 +658,25 @@ def get_measurements(dbvalues, sessionid, channelid, starttime, endtime):
         cursor = conn.cursor()
 
 
-        readsql = "SELECT * FROM measurements " \
-            "WHERE timestamp_measurements >= '%s' " \
-            "AND timestamp_measurements <= '%s' " \
-            "AND fk_sessions_measurements = %d " \
-            "AND fk_channels_measurements = %d" \
-            % (starttime,
-               endtime,
-               sessionid,
-               channelid)                                                      # Searches the database
+        if channelid == None:
+            readsql = "SELECT * FROM measurements " \
+                "WHERE timestamp_measurements >= '%s' " \
+                "AND timestamp_measurements <= '%s' " \
+                "AND fk_sessions_measurements = %d" \
+                % (starttime,
+                endtime,
+                sessionid)                                              # Searches the database
+        else:
+            readsql = "SELECT * FROM measurements " \
+                      "WHERE timestamp_measurements >= '%s' " \
+                      "AND timestamp_measurements <= '%s' " \
+                      "AND fk_sessions_measurements = %d " \
+                      "AND fk_channels_measurements = %d" \
+                      % (starttime,
+                         endtime,
+                         sessionid,
+                         channelid)
+
 
         cursor.execute(readsql)
         result = cursor.fetchall()
@@ -667,6 +752,57 @@ def add_to_database(dbvalues, list_of_items, sessionid):
         print('add_to_database MySQL IntegrityError: ')
         print(E2)
         raise E2
+
+def remote_add_to_database(dbvalues, list_of_items):
+    """
+    Adds measurements to the database from a list of values
+    :param dbvalues: a python dictionary containing MySQL connection values
+    Example: {'user': 'root', 'host': '127.0.0.1', 'password': '1234', 'name': 'databasename', 'port': '3306'}
+    :param list_of_items: a dictionary containing channel id's as keys and measurements as values
+    Example: {1: 25.6, 2: 22.3}
+    :param sessionid: an int representing the id of the session that collected the measurements
+    :return: True if something was added to the database, false otherwise
+    """
+    try:
+        conn = pymysql.connect(user=dbvalues['user'],                          # Establishes connection to the database
+                               host=dbvalues['host'],
+                               password=dbvalues['password'],
+                               database=dbvalues['name'],
+                               port=int(dbvalues['port']))
+        curs = conn.cursor()
+
+        addvalues = str(list_of_items)
+        addvalues = addvalues[1:-1]                                            # Creates a string formatted for MySQL
+
+        sql1 = "INSERT INTO " \
+            "measurements(fk_sessions_measurements, " \
+            "fk_channels_measurements, " \
+            "timestamp_measurements, timestampfractions_measurements, " \
+            "data_measurements) " \
+            "VALUES" + addvalues                                               # Adds the values to the database
+        curs.execute(sql1)
+
+        conn.commit()
+        conn.close()
+        return True
+    except TypeError as T:
+        print('add_to_database Typerror: ')
+        print(T)
+        return False
+    except pymysql.err.Error as E:
+        print('add_to_database MySQL error: ')
+        print(E)
+        raise E
+    except pymysql.err.IntegrityError as E2:
+        print('add_to_database MySQL IntegrityError: ')
+        print(E2)
+        raise E2
+
+def convert_to_remote_insert(values, newsession, piid):
+    for row in values:
+        row['fk_sessions_measurements'] = newsession
+        row['fk_channels_measurements'] = row['fk_channels_measurements']+60*(piid-1)
+    return values
 
 if __name__ == '__main__':
     db = configinterface.read_config('config.cfg', 'default')

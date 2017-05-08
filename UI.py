@@ -55,11 +55,12 @@ class Channelsettings(QtWidgets.QWidget):
             for i in range(60):
                 item = self.tableWidget.item(i, 0)
                 if item.checkState() == QtCore.Qt.Checked:
-                    channelid = "%s" % (self.tableWidget.verticalHeaderItem(i).text(),)
+                    channelid = "%d" % (i+1)
+                    channelidalias = "%s" % (self.tableWidget.verticalHeaderItem(i).text(),)
                     channelunit = "%s" % (self.tableWidget.item(i, 1).text(),)
                     channeltolerance = "%s" % (self.tableWidget.item(i, 2).text(),)
                     channelname = "%s" % (self.tableWidget.item(i, 3).text(),)
-                    channellist[channelid] = str([channelname ,channelunit, channeltolerance])
+                    channellist[channelid] = str([channelidalias, channelname, channelunit, channeltolerance])
 
                     float(channeltolerance)
 
@@ -234,6 +235,10 @@ class Databasesettingslayout(QtWidgets.QWidget):
             configinterface.set_config('config.cfg', 'remote', newremotevalues)
 
         self.okPressed.emit()
+
+    def useRemote(self):
+        use = self.remote
+        return use
 
 class Databaseform(QtWidgets.QWidget):
 

@@ -16,6 +16,7 @@ import matplotlib.dates as matdates
 import datetime
 import UI
 import random
+import ast
 
 
 
@@ -24,12 +25,16 @@ class Main(QtWidgets.QMainWindow):
 
     def __init__(self, parent=None):
         self.sessionrunning = False
+        piid = configinterface.read_config('config.cfg', 'piid')
+        self.piid = int(piid['id'])
+
 
         QtWidgets.QMainWindow.__init__(self, parent)
         self.widgetlist = UI.UIpages()
         self.widgetlist.setCurrentIndex(self.widgetlist.mainmenuindex)
         self.setCentralWidget(self.widgetlist)
         self.shouldend = threading.Event()
+        self.shouldendremote = threading.Event()
         self.set_connections()
 
     def set_connections(self):
@@ -69,8 +74,10 @@ class Main(QtWidgets.QMainWindow):
 
     def endcurrentsession(self):
         self.shouldend.set()
+        self.shouldendremote.set()
         self.widgetlist.mainmenu.sessionended()
         Database.end_current_session(self.localdb, self.sessionid)
+        Database.end_current_session(self.remotedb, self.remotesessionid)
         self.datadisplay.close()
         self.sessionrunning = False
         self.showmainmenu()
@@ -80,19 +87,47 @@ class Main(QtWidgets.QMainWindow):
 
     def startsession(self):
         try:
+            useremote = self.widgetlist.widget(self.widgetlist.databasesettingsindex).useRemote()
             self.localdb = configinterface.read_config('config.cfg', 'default')
-            self.remotedb = configinterface.read_config('config.cfg', 'remote')
-            self.channellist = configinterface.read_config('config.cfg', 'channels')
-            self.sessionid = Database.start_new_session(dbvalues=self.localdb, name='placeholdername', channels=self.channellist)
 
-            #self.remotesessionid = Database.start_new_session(dbvalues=self.remotedb, name='Placeholdername', channels=self.channellist)
-            addthread = Addthread(localdb=self.localdb, remotedb=self.remotedb, sessionid=self.sessionid, shouldend=self.shouldend, channellist=self.channellist)
+            channellist = configinterface.read_config('config.cfg', 'channels')
+
+            for index in channellist:
+                channellist[index] = ast.literal_eval(channellist[index])
 
 
-            self.datadisplay = Datadisplay(self.localdb, self.sessionid, self.channellist)
-            self.datadisplay.show()
 
+            self.sessionid = Database.start_new_session(dbvalues=self.localdb, name='placeholdername', channels=channellist)
+            print("Started local session")
+            addthread = Addthread(localdb=self.localdb, sessionid=self.sessionid, shouldend=self.shouldend, channellist=channellist)
+
+
+
+            now = datetime.datetime.now()
+            startsearchvalue = now.strftime('%Y-%m-%d %H:%M:%S')
+            writeitem = {'start': startsearchvalue}
+            configinterface.set_config('config.cfg', 'remotetimestamp', writeitem)
+
+
+
+            if useremote:
+                self.remotedb = configinterface.read_config('config.cfg', 'remote')
+                remotechannels = self.convertToRemoteChannels(channellist)
+                self.remotesessionid = Database.remote_start_new_session(dbvalues=self.remotedb, name='placeholdername',
+                                                                        channels=remotechannels, piid=self.piid)
+                print("Started remote session")
+
+
+
+                remoteaddthread = Addremotethread(remotedb=self.remotedb, localdb=self.localdb,
+                                                remotesessionid=self.remotesessionid, sessionid=self.sessionid, shouldend=self.shouldendremote,
+                                                channellist=remotechannels)
             addthread.start()
+            if useremote:
+                remoteaddthread.start()
+
+            self.datadisplay = Datadisplay(self.localdb, self.sessionid, channellist)
+            self.datadisplay.show()
             self.widgetlist.mainmenu.sessionstarted()
             self.widgetlist.setCurrentIndex(self.widgetlist.mainmenuindex)
             self.sessionrunning = True
@@ -101,11 +136,14 @@ class Main(QtWidgets.QMainWindow):
                 message = "Anslutning nekad, se över port, användare och lösenord"
                 self.messageToUser(message)
             if E.args[0] == 2003:
-                message = "Kunde inte anluta till host: '%s'" % (self.localdb['host'])
+                message = "Kunde inte anluta till host: '%s'" % (self.remotedb['host'])
                 self.messageToUser(message)
-        except ValueError as V:
-            wrongporttype = "Fel typ för 'Port', ett heltal förväntas"
-            self.messageToUser(wrongporttype)
+            if E.args[0] == 1049:
+                message = "Hittade ingen database med namnet '%s'" % (self.remotedb['name'])
+                self.messageToUser(message)
+        #except ValueError as V:
+        #    wrongporttype = "Fel typ för 'Port', ett heltal förväntas"
+        #    self.messageToUser(wrongporttype)
 
 
     def messageToUser(self, messagetext):
@@ -115,12 +153,18 @@ class Main(QtWidgets.QMainWindow):
         message.setStandardButtons(QtWidgets.QMessageBox.Close)
         message.exec_()
 
+    def convertToRemoteChannels(self, channellist):
+        newlist = {}
+        for index in channellist:
+            newindex = int(index)
+            newindex = newindex + 60*(self.piid-1)
+            newlist[str(newindex)] = channellist[index]
+        return newlist
 
 class Addthread(threading.Thread):
 
-    def __init__(self, localdb, remotedb, sessionid, channellist, shouldend):
+    def __init__(self, localdb, sessionid, channellist, shouldend):
         self.localdb = localdb
-        self.remotedb = remotedb
         self.sessionid = sessionid
         self.shouldend = shouldend
         self.channellist = channellist
@@ -140,17 +184,47 @@ class Addthread(threading.Thread):
 
 class Addremotethread(threading.Thread):
 
-    def __init__(self, localdb, remotedb, channellist, shouldend):
-        self.localdb = localdb
+    def __init__(self, localdb, remotedb, channellist, remotesessionid, sessionid, shouldend):
         self.remotedb = remotedb
+        self.remotesessionid = remotesessionid
         self.sessionid = sessionid
         self.shouldend = shouldend
         self.channellist = channellist
+        self.localdb = localdb
         threading.Thread.__init__(self)
 
     def run(self):
+        pid = configinterface.read_config('config.cfg', 'piid')
+        piid = int(pid['id'])
+        while not self.shouldend.wait(10.0):                          #change hard coded wait
+            start = configinterface.read_config('config.cfg', 'remotetimestamp')
+            start = start['start']
+            end = datetime.datetime.now()
+            valuelist = Database.get_measurements(dbvalues=self.localdb, sessionid=self.sessionid, channelid=None, starttime=start, endtime=end)
 
-        while not self.shouldend.wait(10.0)                          #change hard coded wait
+
+            print("QUERY RESULT")
+            print(valuelist)
+
+            new = []
+            for row in valuelist:
+                timestamp = row[2].strftime('%Y-%m-%d %H:%M:%S')
+                timestampfractions = row[3]
+
+                data = row[4]
+                remotechannel = row[1]+60*(piid-1)
+                new.append((self.remotesessionid, remotechannel, timestamp, timestampfractions, data))
+
+
+            print("MODIFIED RESULT")
+            print(new)
+
+            Database.remote_add_to_database(self.remotedb, new)
+
+            newstart = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            configinterface.set_config('config.cfg', 'remotetimestamp', {'start': newstart})
+
+        self.shouldend.clear()
 
 
 
@@ -161,11 +235,17 @@ class Datadisplay(QtWidgets.QDialog):
     def __init__(self, dbvalues, sessionid, channellist, parent=None):
         self.dbvalues = dbvalues
         self.sessionid = sessionid
-        self.channellist = channellist
-        self.displaychannel = int(next(iter(self.channellist)))
+        channelpairs = {}
+        for index in channellist:
+            displaychannel = channellist[index][0]
+            backendchannel = int(index)
+            channelpairs[displaychannel] = backendchannel
+        self.channelpairs = channelpairs
+        self.currentchannel = next(iter(self.channelpairs))
+
 
         QtWidgets.QDialog.__init__(self, parent)
-        self.plot = Currentsessionplot(dbvalues, sessionid, self.displaychannel)
+        self.plot = Currentsessionplot(dbvalues, sessionid, self.channelpairs[self.currentchannel])
 
         formlayout = QtWidgets.QFormLayout()
 
@@ -173,12 +253,12 @@ class Datadisplay(QtWidgets.QDialog):
         font.setFamily('Ubuntu')
         font.setPointSize(18)
 
-        self.label = QtWidgets.QLabel("Visar kanal %d" % self.displaychannel)
+        self.label = QtWidgets.QLabel("Visar kanal %d" % int(self.currentchannel))
         self.label.setFont(font)
 
         self.dropdown = QtWidgets.QComboBox()
         self.dropdown.currentIndexChanged.connect(self.switchchannel)
-        for item in channellist:
+        for item in self.channelpairs:
             self.dropdown.addItem(item)
 
         formlayout.insertRow(0, self.label, self.dropdown)
@@ -197,18 +277,17 @@ class Datadisplay(QtWidgets.QDialog):
         self.setLayout(hbox)
 
     def switchchannel(self):
-        self.displaychannel = int(self.dropdown.currentText())
-        print(self.displaychannel)
-        self.label.setText("Visar kanal %d" % self.displaychannel)
-        self.plot.channelswitch(self.displaychannel)
+        self.currentchannel = self.dropdown.currentText()
+        self.label.setText("Visar kanal %d" % int(self.currentchannel))
+        self.plot.channelswitch(self.channelpairs[self.currentchannel])
 
 
 class Currentsessionplot(FC):
 
-    def __init__(self, dbvalues, sessionid, displaychannel):
+    def __init__(self, dbvalues, sessionid, plotchannel):
         self.dbvalues = dbvalues
         self.sessionid = sessionid
-        self.displaychannel = displaychannel
+        self.plotchannel = plotchannel
 
 
         self.figure = Figure(figsize=(10, 10), dpi=100)
@@ -228,7 +307,7 @@ class Currentsessionplot(FC):
 
     def channelswitch(self, newid):
         self.timer.stop()
-        self.displaychannel = newid
+        self.plotchannel = newid
         self.figure.clear()
         self.axes = self.figure.add_subplot(111)
         self.axes.hold(False)
@@ -240,7 +319,7 @@ class Currentsessionplot(FC):
         rawstart = rawnow - datetime.timedelta(seconds=100)
         now = rawnow.strftime('%Y-%m-%d %H:%M:%S')
         start = rawstart.strftime('%Y-%m-%d %H:%M:%S')
-        values = Database.get_measurements(dbvalues=self.dbvalues, sessionid=self.sessionid, channelid=self.displaychannel,
+        values = Database.get_measurements(dbvalues=self.dbvalues, sessionid=self.sessionid, channelid=self.plotchannel,
                                            starttime=start,
                                            endtime=now)
         xaxisvalues = []
@@ -264,17 +343,18 @@ class Currentsessionplot(FC):
 
 
 
-
-
-
-
-
-
-
-
-
-
 if __name__ == '__main__':
+    remote = configinterface.read_config('config.cfg', 'createremote')
+    local = configinterface.read_config('config.cfg', 'default')
+    Database.create_remote_database(remote)
+    parser = configparser.ConfigParser()
+    with open('config.cfg', 'r') as file:
+        parser.read_file(file)
+        hasid = parser.has_section('piid')
+    if not hasid:
+        id = str(Database.remote_add_new_pi(remote, 'placeholdername'))
+        configinterface.set_config('config.cfg', 'piid', {'id': id})
+    Database.create_local_database(local)
     app = QtWidgets.QApplication(sys.argv)
     window = Main()
     window.showFullScreen()
