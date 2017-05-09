@@ -6,10 +6,11 @@ import numpy as np
 import configparser
 import Database
 import queue
+
 from PyQt5 import QtWidgets
 from PyQt5 import QtCore
 from PyQt5 import QtGui
-from PyQt5 import QtChart
+
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FC
 from matplotlib.figure import Figure
 import matplotlib.dates as matdates
@@ -17,8 +18,6 @@ import datetime
 import UI
 import random
 import ast
-
-
 
 
 class Main(QtWidgets.QMainWindow):
@@ -59,6 +58,9 @@ class Main(QtWidgets.QMainWindow):
         self.widgetlist.setCurrentIndex(self.widgetlist.databasesettingsindex)
 
     def showhelppage(self):
+        url = QtCore.QUrl("UsefulnessHarpers.pdf")
+        pdfhandler = QtGui.QDesktopServices()
+        pdfhandler.openUrl(url)
         self.widgetlist.setCurrentIndex(self.widgetlist.helppageindex)
 
     def showmainmenu(self):
@@ -73,11 +75,15 @@ class Main(QtWidgets.QMainWindow):
         self.close()
 
     def endcurrentsession(self):
+        useremote = self.widgetlist.widget(self.widgetlist.databasesettingsindex).useRemote()
         self.shouldend.set()
-        self.shouldendremote.set()
+
         self.widgetlist.mainmenu.sessionended()
         Database.end_current_session(self.localdb, self.sessionid)
-        Database.end_current_session(self.remotedb, self.remotesessionid)
+        if useremote:
+            self.shouldendremote.set()
+            Database.end_current_session(self.remotedb, self.remotesessionid)
+
         self.datadisplay.close()
         self.sessionrunning = False
         self.showmainmenu()
@@ -105,7 +111,8 @@ class Main(QtWidgets.QMainWindow):
 
             now = datetime.datetime.now()
             startsearchvalue = now.strftime('%Y-%m-%d %H:%M:%S')
-            writeitem = {'start': startsearchvalue}
+            startfractions = str(now.microsecond)
+            writeitem = {'start': startsearchvalue, 'startfractions': startfractions}
             configinterface.set_config('config.cfg', 'remotetimestamp', writeitem)
 
 
@@ -191,6 +198,8 @@ class Addremotethread(threading.Thread):
         self.shouldend = shouldend
         self.channellist = channellist
         self.localdb = localdb
+        self.latestaddtime = None
+        self.latestaddfractions = None
         threading.Thread.__init__(self)
 
     def run(self):
@@ -199,6 +208,8 @@ class Addremotethread(threading.Thread):
         while not self.shouldend.wait(10.0):                          #change hard coded wait
             start = configinterface.read_config('config.cfg', 'remotetimestamp')
             start = start['start']
+
+
             end = datetime.datetime.now()
             valuelist = Database.get_measurements(dbvalues=self.localdb, sessionid=self.sessionid, channelid=None, starttime=start, endtime=end)
 
@@ -206,14 +217,21 @@ class Addremotethread(threading.Thread):
             print("QUERY RESULT")
             print(valuelist)
 
+            templatestaddtime = None
+            templatestaddfractions = None
             new = []
             for row in valuelist:
                 timestamp = row[2].strftime('%Y-%m-%d %H:%M:%S')
                 timestampfractions = row[3]
-
+                templatestaddtime = row[2].strftime('%Y-%m-%d %H:%M:%S')
+                templatestaddfractions = row[3]
                 data = row[4]
                 remotechannel = row[1]+60*(piid-1)
-                new.append((self.remotesessionid, remotechannel, timestamp, timestampfractions, data))
+                if not(timestamp == self.latestaddtime and timestampfractions == self.latestaddfractions):
+                    new.append((self.remotesessionid, remotechannel, timestamp, timestampfractions, data))
+
+            self.latestaddtime = templatestaddtime
+            self.latestaddfractions = templatestaddfractions
 
 
             print("MODIFIED RESULT")

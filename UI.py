@@ -77,10 +77,10 @@ class Channelsettings(QtWidgets.QWidget):
             else:
                 self.okPressed.emit()
         except AttributeError:
-            textmissing = "Kanal %s saknar nödvändig information!" % (channelid)
+            textmissing = "Kanal %s saknar nödvändig information!" % (channelidalias)
             self.messageToUser(textmissing)
         except ValueError:
-            wronginputtype = "Kanal %s har fel typ av tolerans, tolerans ska vara ett flyttal t.ex. 42.0" % (channelid)
+            wronginputtype = "Kanal %s har fel typ av tolerans, tolerans ska vara ett flyttal t.ex. 42.0" % (channelidalias)
             self.messageToUser(wronginputtype)
 
 
@@ -106,33 +106,44 @@ class Channelsettings(QtWidgets.QWidget):
         self.tableWidget.setColumnCount(4)
         self.tableWidget.setObjectName("tableWidget")
         self.tableWidget.setRowCount(60)
+        self.tableWidget.setShowGrid(True)
+
 
 
         for i in range(60):
             checkbox = QtWidgets.QTableWidgetItem()
             checkbox.setFlags(QtCore.Qt.ItemIsUserCheckable | QtCore.Qt.ItemIsEnabled)
+            checkbox.setText("Använd")
             checkbox.setCheckState(QtCore.Qt.Unchecked)
+            font = QtGui.QFont()
+            font.setPointSize(12)
+            checkbox.setFont(font)
             self.tableWidget.setItem(i, 0, checkbox)
+            self.tableWidget.itemClicked.emit(checkbox)
+            self.tableWidget.itemActivated.emit(checkbox)
 
-            index = 100
-            for i in range(1, 21):
-                vheadertext = "%d" % (i + index)
-                vheader = QtWidgets.QTableWidgetItem(vheadertext)
-                self.tableWidget.setVerticalHeaderItem(i - 1, vheader)
+        self.tableWidget.itemClicked.connect(self.checkrow)
+        self.tableWidget.itemActivated.connect(self.checkrow)
 
-            index = 200
-            for i in range(1, 21):
-                vheadertext = "%d" % (i + index)
-                vheader = QtWidgets.QTableWidgetItem(vheadertext)
-                self.tableWidget.setVerticalHeaderItem(20+i - 1, vheader)
+        index = 100
+        for i in range(1, 21):
+            vheadertext = "%d" % (i + index)
+            vheader = QtWidgets.QTableWidgetItem(vheadertext)
+            self.tableWidget.setVerticalHeaderItem(i - 1, vheader)
 
-            index = 300
-            for i in range(1, 21):
-                vheadertext = "%d" % (i + index)
-                vheader = QtWidgets.QTableWidgetItem(vheadertext)
-                self.tableWidget.setVerticalHeaderItem(40+i - 1, vheader)
+        index = 200
+        for i in range(1, 21):
+            vheadertext = "%d" % (i + index)
+            vheader = QtWidgets.QTableWidgetItem(vheadertext)
+            self.tableWidget.setVerticalHeaderItem(20+i - 1, vheader)
 
-        useheader = QtWidgets.QTableWidgetItem("Använd:")
+        index = 300
+        for i in range(1, 21):
+            vheadertext = "%d" % (i + index)
+            vheader = QtWidgets.QTableWidgetItem(vheadertext)
+            self.tableWidget.setVerticalHeaderItem(40+i - 1, vheader)
+
+        useheader = QtWidgets.QTableWidgetItem("")
         unitheader = QtWidgets.QTableWidgetItem("Enhet")
         toleranceheader = QtWidgets.QTableWidgetItem("Tolerans")
         nameheader = QtWidgets.QTableWidgetItem("Namn")
@@ -142,14 +153,19 @@ class Channelsettings(QtWidgets.QWidget):
         self.tableWidget.setHorizontalHeaderItem(3, nameheader)
 
         self.tableWidget.verticalHeader().setCascadingSectionResizes(False)
-        self.tableWidget.setColumnWidth(0, 100)
-        self.tableWidget.setColumnWidth(1, 100)
-        self.tableWidget.setColumnWidth(2, 100)
-        self.tableWidget.setColumnWidth(3, 100)
+        self.tableWidget.setColumnWidth(0, 120)
+        self.tableWidget.setColumnWidth(1, 120)
+        self.tableWidget.setColumnWidth(2, 120)
+        self.tableWidget.setColumnWidth(3, 120)
 
         return self.tableWidget
 
-
+    def checkrow(self, checkbox):
+            checked = checkbox.checkState()
+            if checked == 0:
+                checkbox.setCheckState(2)
+            else:
+                checkbox.setCheckState(0)
 
 
 
