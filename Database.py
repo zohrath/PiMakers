@@ -739,7 +739,7 @@ def add_to_database(dbvalues, list_of_items, sessionid):
         addvalues = str(templist)
         addvalues = addvalues[1:-1]                                            # Creates a string formatted for MySQL
 
-        sql1 = "Replace INTO " \
+        sql1 = "Insert INTO " \
             "measurements(fk_sessions_measurements, " \
             "fk_channels_measurements, " \
             "timestamp_measurements, timestampfractions_measurements, " \

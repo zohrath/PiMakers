@@ -344,7 +344,7 @@ class Addremotethread(threading.Thread):
 
                     Database.remote_add_to_database(self.remotedb, new)
 
-                    newstart = end.strftime('%Y-%m-%d %H:%M:%S')
+                    newstart = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                     configinterface.set_config('config.cfg', 'latestsession', {'start': newstart})
                 else:
                     self.shouldend.clear()
