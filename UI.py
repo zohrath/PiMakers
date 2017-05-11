@@ -12,6 +12,116 @@ import queue
 import pymysql
 
 
+class VisualiseSession(QtWidgets.QTableWidget):
+
+    backPressed = QtCore.pyqtSignal()
+    okPressed = QtCore.pyqtSignal()
+    sessionChosen = QtCore.pyqtSignal(int)
+
+    def __init__(self, parent=None):
+        QtWidgets.QWidget.__init__(self, parent)
+
+
+        buttons = QtWidgets.QDialogButtonBox()
+        okbutton = buttons.addButton('Nästa', buttons.AcceptRole)
+        cancelbutton = buttons.addButton('Tillbaka', buttons.RejectRole)
+        okbutton.setMinimumSize(300, 100)
+        okbutton.clicked.connect(self.nextPage)
+        cancelbutton.setMinimumSize(300, 100)
+        cancelbutton.clicked.connect(self.goback)
+        message = QtWidgets.QLabel("Select session")
+
+        self.sessionlist = QtWidgets.QListWidget()
+        self.channellist = None
+
+        #self.currentchannel = None
+        self.currentsession = None
+
+        self.sessionlist.itemActivated.connect(self.sessionactivated)
+        self.sessionlist.itemClicked.connect(self.sessionactivated)
+
+        #self.channellist.itemClicked.connect(self.channelactivated)
+
+
+        self.sessionlist.setMinimumSize(600, 100)
+        #self.channellist.setMinimumSize(300, 100)
+
+        scrollablesessions = QtWidgets.QScrollArea()
+        #scrollablechannels = QtWidgets.QScrollArea()
+
+        #scrollablechannels.setWidget(self.channellist)
+        scrollablesessions.setWidget(self.sessionlist)
+
+        #form = QtWidgets.QFormLayout()
+        #form.addRow(scrollablesessions, scrollablechannels)
+
+
+        vbox = QtWidgets.QVBoxLayout()
+        vbox.addStretch(1)
+        vbox.addWidget(message)
+        vbox.addWidget(scrollablesessions)
+        vbox.addWidget(buttons)
+        vbox.addStretch(2)
+
+        hbox = QtWidgets.QHBoxLayout()
+        hbox.addStretch(1)
+        hbox.addLayout(vbox)
+        hbox.addStretch(1)
+
+        self.setLayout(hbox)
+
+    def nextPage(self):
+        print(self.currentchannel)
+        print(self.currentsession)
+        if not self.currentsession == None:
+            self.okPressed.emit(self.currentsession, self.channellist)
+        else:
+            self.messageToUser("Du måste välja en mätning och en kanal!")
+
+
+
+
+    def goback(self):
+        self.backPressed.emit()
+
+    def channelactivated(self, activatedrow):
+        idandname = QtWidgets.QListWidgetItem(activatedrow).text()
+        list = idandname.split()
+        self.currentchannel = int(list[0])
+
+    def sessionactivated(self, activatedrow):
+        idandname = QtWidgets.QListWidgetItem(activatedrow).text()
+        list = idandname.split()
+        self.currentsession = int(list[0])
+        self.sessionChosen.emit(int(list[0]))
+
+
+    def updateSessionList(self, idandnamelist):
+        self.sessionlist.clear()
+        for item in idandnamelist:
+            widgetitem = QtWidgets.QListWidgetItem()
+            widgetitem.setText("%d %s" % (item[0], item[1]))
+            self.sessionlist.addItem(widgetitem)
+            self.sessionlist.itemActivated.emit(widgetitem)
+            self.sessionlist.itemClicked.emit(widgetitem)
+
+    def updateChannelList(self, channellist):
+        formattedchannellist = {}
+        for index in channellist:
+            formattedchannellist[index[0]] = [index[1]]
+        self.channellist = formattedchannellist
+        print(self.channellist)
+
+    def messageToUser(self, messagetext):
+        message = QtWidgets.QMessageBox()
+        message.setMinimumSize(1000, 800)
+        message.setText(messagetext)
+        message.setStandardButtons(QtWidgets.QMessageBox.Close)
+        message.exec_()
+
+
+
+
 
 class Channelsettings(QtWidgets.QWidget):
     backPressed = QtCore.pyqtSignal()
@@ -174,9 +284,9 @@ class Databasesettingslayout(QtWidgets.QWidget):
     cancelPressed = QtCore.pyqtSignal()
     okPressed = QtCore.pyqtSignal()
 
-    def __init__(self, parent=None):
+    def __init__(self, message, firsttoggle, secondtoggle, writesection, parent=None):
         QtWidgets.QWidget.__init__(self, parent)
-
+        self.writesection = writesection
 
         buttons = QtWidgets.QDialogButtonBox()
         okbutton = buttons.addButton('Starta', buttons.AcceptRole)
@@ -189,20 +299,20 @@ class Databasesettingslayout(QtWidgets.QWidget):
         font = QtGui.QFont()
         font.setFamily("Ubuntu")
         font.setPointSize(18)
-        infostring = QtWidgets.QLabel("Mätvärden kommer att sparas lokalt, vill du även spara till en annan databas?")
+        infostring = QtWidgets.QLabel(message)
         infostring.setFont(font)
 
         self.databaseform = Databaseform()
 
         yesbutton = QtWidgets.QRadioButton()
-        yesbutton.setText("Ja")
+        yesbutton.setText(firsttoggle)
         yesbutton.setAutoExclusive(True)
         yesbutton.setCheckable(True)
         yesbutton.toggled.connect(self.databaseform.useRemote)
         yesbutton.toggled.connect(self.setRemoteTrue)
 
         nobutton = QtWidgets.QRadioButton()
-        nobutton.setText("Nej")
+        nobutton.setText(secondtoggle)
         nobutton.setAutoExclusive(True)
         nobutton.setCheckable(True)
         nobutton.toggled.connect(self.databaseform.dontUseRemote)
@@ -248,7 +358,7 @@ class Databasesettingslayout(QtWidgets.QWidget):
             name = self.databaseform.database.text()
             password = self.databaseform.password.text()
             newremotevalues = {'host': host, 'user': user, 'port': port, 'name': name, 'password': password}
-            configinterface.set_config('config.cfg', 'remote', newremotevalues)
+            configinterface.set_config('config.cfg', self.writesection, newremotevalues)
 
         self.okPressed.emit()
 
@@ -453,8 +563,12 @@ class UIpages(QtWidgets.QStackedWidget):
 
         self.mainmenu = Mainmenu()
         self.mainmenuindex = self.addWidget(self.mainmenu)
-
-        self.databasesettings = Databasesettingslayout()
+        self.databasesettings = Databasesettingslayout(firsttoggle="Ja",
+                                                       secondtoggle="Nej",
+                                                       writesection="remote",
+                                                       message="Mätvärden kommer att "
+                                                               "sparas lokalt, vill du även "
+                                                               "spara till en annan databas?")
         self.databasesettingsindex = self.addWidget(self.databasesettings)
 
         self.helppage = helpPages()
@@ -466,6 +580,17 @@ class UIpages(QtWidgets.QStackedWidget):
         self.current = currentSession()
         self.currentsessionindex = self.addWidget(self.current)
 
+        self.visualizedatabasesettings = Databasesettingslayout(firsttoggle="Annan",
+                                                                secondtoggle="Lokal",
+                                                                writesection="remotevisual",
+                                                                message="Hämta lokala mätvärden, "
+                                                                        "eller hämta från en databas?")
+        self.visualizedatabasesettingsindex = self.addWidget(self.visualizedatabasesettings)
+
+        self.visualizesessionsettings = VisualiseSession()
+        self.visualizesessionsettingsindex = self.addWidget(self.visualizesessionsettings)
+
+
 
 class Mainmenu(QtWidgets.QWidget):
 
@@ -473,6 +598,7 @@ class Mainmenu(QtWidgets.QWidget):
     sessionSignal = QtCore.pyqtSignal()
     helpSignal = QtCore.pyqtSignal()
     currentSignal = QtCore.pyqtSignal()
+    visualizeSignal = QtCore.pyqtSignal()
 
     def __init__(self, parent=None):
         QtWidgets.QWidget.__init__(self, parent)
@@ -488,6 +614,7 @@ class Mainmenu(QtWidgets.QWidget):
 
         self.visualizeButton = QtWidgets.QPushButton("Visa mätningar")
         self.visualizeButton.setMinimumSize(500, 100)
+        self.visualizeButton.clicked.connect(self.visualize)
 
         self.helpButton = QtWidgets.QPushButton("Hjälp / Inte FAQ")
         self.helpButton.setMinimumSize(500, 100)
@@ -511,6 +638,9 @@ class Mainmenu(QtWidgets.QWidget):
         hbox.addStretch(1)
 
         self.setLayout(hbox)
+
+    def visualize(self):
+        self.visualizeSignal.emit()
 
     def quit(self):
         self.quitSignal.emit()

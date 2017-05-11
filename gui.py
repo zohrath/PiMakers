@@ -5,12 +5,10 @@ import configinterface
 import numpy as np
 import configparser
 import Database
-import queue
 
 from PyQt5 import QtWidgets
 from PyQt5 import QtCore
 from PyQt5 import QtGui
-
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FC
 from matplotlib.figure import Figure
 import matplotlib.dates as matdates
@@ -34,13 +32,16 @@ class Main(QtWidgets.QMainWindow):
         self.setCentralWidget(self.widgetlist)
         self.shouldend = threading.Event()
         self.shouldendremote = threading.Event()
+        self.programquit = threading.Event()
         self.set_connections()
+        self.checkforabortedsession()
 
     def set_connections(self):
         self.widgetlist.widget(self.widgetlist.mainmenuindex).quitSignal.connect(self.quit)
         self.widgetlist.widget(self.widgetlist.mainmenuindex).sessionSignal.connect(self.showchannelsettings)
         self.widgetlist.widget(self.widgetlist.mainmenuindex).helpSignal.connect(self.showhelppage)
         self.widgetlist.widget(self.widgetlist.mainmenuindex).currentSignal.connect(self.endcurrentsession)
+        self.widgetlist.widget(self.widgetlist.mainmenuindex).visualizeSignal.connect(self.showvisualizesettings)
 
         self.widgetlist.widget(self.widgetlist.databasesettingsindex).cancelPressed.connect(self.showchannelsettings)
         self.widgetlist.widget(self.widgetlist.databasesettingsindex).okPressed.connect(self.startsession)
@@ -51,8 +52,73 @@ class Main(QtWidgets.QMainWindow):
         self.widgetlist.widget(self.widgetlist.channelsettingsindex).backPressed.connect(self.showmainmenu)
         self.widgetlist.widget(self.widgetlist.channelsettingsindex).okPressed.connect(self.showdatabasesettings)
 
+        self.widgetlist.widget(self.widgetlist.visualizedatabasesettingsindex).cancelPressed.connect(self.showmainmenu)
+        self.widgetlist.widget(self.widgetlist.visualizedatabasesettingsindex).okPressed.connect(self.showsessionlist)
+
+        self.widgetlist.widget(self.widgetlist.visualizesessionsettingsindex).backPressed.connect(self.showvisualizesettings)
+        self.widgetlist.widget(self.widgetlist.visualizesessionsettingsindex).sessionChosen.connect(self.fetchChannels)
+        self.widgetlist.widget(self.widgetlist.visualizesessionsettingsindex).okPressed.connect(self.visualize)
+
+    def fetchChannels(self, sessionid):
+        useremote = self.widgetlist.widget(self.widgetlist.visualizedatabasesettingsindex).useRemote()
+        if useremote:
+            remotedb = configinterface.read_config('config.cfg', 'remotevisual')
+            channellist = Database.get_session_channel_list(remotedb, sessionid)
+        else:
+            localdb = configinterface.read_config('config.cfg', 'default')
+            channellist = Database.get_session_channel_list(localdb, sessionid)
+        self.widgetlist.widget(self.widgetlist.visualizesessionsettingsindex).updateChannelList(channellist)
+
+    def visualize(self, sessionid, channellist):
+        if remote:
+            database = configinterface.read_config('config.cfg', 'remotevisual')
+        else:
+            database = configinterface.read_config('config.cfg', 'default')
+        datadisplay = Datadisplay(database, sessionid)
 
 
+
+
+    def checkforabortedsession(self):
+        with open('config.cfg', 'r+') as configfile:
+            parser = configparser.ConfigParser()
+            parser.read_file(configfile)
+            hassection = parser.has_section('latestsession')
+            print(hassection)
+        if hassection:
+            sessionsettings = configinterface.read_config('config.cfg', 'latestsession')
+            start = sessionsettings['start']
+            end = sessionsettings['end']
+            if not end == '':
+                startvalue = datetime.datetime.strptime(start, "%Y-%m-%d %H:%M:%S")
+                endvalue = datetime.datetime.strptime(end, "%Y-%m-%d %H:%M:%S")
+                print("I am in checkforsession")
+                if endvalue > startvalue:
+                    remotedb = sessionsettings['remotedatabase']
+                    remotedb = ast.literal_eval(remotedb)
+
+                    localdb = sessionsettings['localdatabase']
+                    localdb = ast.literal_eval(localdb)
+                    remotesessionid = int(sessionsettings['remotesessionid'])
+                    localsessionid = int(sessionsettings['localsessionid'])
+                    queue = threading.Event()
+                    queue.set()
+                    remoteaddthread = Addremotethread(remotedb=remotedb, localdb=localdb,
+                                                      remotesessionid=remotesessionid, sessionid=localsessionid,
+                                                      shouldend=queue, programquit=self.programquit, timeintervall=0)
+                    print("Starting remote thread")
+                    remoteaddthread.start()
+                    message = self.messageToUser("Den senaste mätningen avslutades genom att programmet stängdes ned, en mätning bör avslutas innan programmet stängs ned \n"
+                                                 "Data från den senaste sessionen kommer nu att föras över till en databas")
+
+
+    def showsessionlist(self):
+        sessionlist = self.getsessions()
+        self.widgetlist.widget(self.widgetlist.visualizesessionsettingsindex).updateSessionList(sessionlist)
+        self.widgetlist.setCurrentIndex(self.widgetlist.visualizesessionsettingsindex)
+
+    def showvisualizesettings(self):
+        self.widgetlist.setCurrentIndex(self.widgetlist.visualizedatabasesettingsindex)
 
     def showdatabasesettings(self):
         self.widgetlist.setCurrentIndex(self.widgetlist.databasesettingsindex)
@@ -72,11 +138,15 @@ class Main(QtWidgets.QMainWindow):
     def quit(self):
         if self.sessionrunning:
             self.endcurrentsession()
+        self.programquit.set()
         self.close()
 
     def endcurrentsession(self):
         useremote = self.widgetlist.widget(self.widgetlist.databasesettingsindex).useRemote()
         self.shouldend.set()
+        endtimestamp = datetime.datetime.now()
+        endtimestamp = endtimestamp.strftime("%Y-%m-%d %H:%M:%S")
+        configinterface.set_config('config.cfg', 'latestsession', {'end': endtimestamp})
 
         self.widgetlist.mainmenu.sessionended()
         Database.end_current_session(self.localdb, self.sessionid)
@@ -88,6 +158,15 @@ class Main(QtWidgets.QMainWindow):
         self.sessionrunning = False
         self.showmainmenu()
 
+    def getsessions(self):
+        useremote = self.widgetlist.widget(self.widgetlist.visualizedatabasesettingsindex).useRemote()
+        if useremote:
+            remotedb = configinterface.read_config('config.cfg', 'remotevisual')
+            sessionlist = Database.get_session_list(remotedb)
+        else:
+            localdb = configinterface.read_config('config.cfg', 'default')
+            sessionlist = Database.get_session_list(localdb)
+        return sessionlist
 
 
 
@@ -101,21 +180,9 @@ class Main(QtWidgets.QMainWindow):
             for index in channellist:
                 channellist[index] = ast.literal_eval(channellist[index])
 
-
-
             self.sessionid = Database.start_new_session(dbvalues=self.localdb, name='placeholdername', channels=channellist)
             print("Started local session")
             addthread = Addthread(localdb=self.localdb, sessionid=self.sessionid, shouldend=self.shouldend, channellist=channellist)
-
-
-
-            now = datetime.datetime.now()
-            startsearchvalue = now.strftime('%Y-%m-%d %H:%M:%S')
-            startfractions = str(now.microsecond)
-            writeitem = {'start': startsearchvalue, 'startfractions': startfractions}
-            configinterface.set_config('config.cfg', 'remotetimestamp', writeitem)
-
-
 
             if useremote:
                 self.remotedb = configinterface.read_config('config.cfg', 'remote')
@@ -127,9 +194,20 @@ class Main(QtWidgets.QMainWindow):
 
 
                 remoteaddthread = Addremotethread(remotedb=self.remotedb, localdb=self.localdb,
-                                                remotesessionid=self.remotesessionid, sessionid=self.sessionid, shouldend=self.shouldendremote,
-                                                channellist=remotechannels)
+                                                remotesessionid=self.remotesessionid, sessionid=self.sessionid, shouldend=self.shouldendremote, programquit=self.programquit, timeintervall=10)
             addthread.start()
+
+
+            now = datetime.datetime.now()
+            startsearchvalue = now.strftime('%Y-%m-%d %H:%M:%S')
+            startfractions = str(now.microsecond)
+            writeitem = {'start': startsearchvalue, 'startfractions': startfractions, 'localdatabase': str(self.localdb), 'localsessionid': str(self.sessionid), 'end': ''}
+            if useremote:
+                writeitem['remotedatabase'] = str(self.remotedb)
+                writeitem['remotesessionid'] = str(self.remotesessionid)
+            configinterface.set_config('config.cfg', 'latestsession', writeitem)
+
+
             if useremote:
                 remoteaddthread.start()
 
@@ -148,9 +226,9 @@ class Main(QtWidgets.QMainWindow):
             if E.args[0] == 1049:
                 message = "Hittade ingen database med namnet '%s'" % (self.remotedb['name'])
                 self.messageToUser(message)
-        #except ValueError as V:
-        #    wrongporttype = "Fel typ för 'Port', ett heltal förväntas"
-        #    self.messageToUser(wrongporttype)
+        except ValueError as V:
+            wrongporttype = "Fel typ för 'Port', ett heltal förväntas"
+            self.messageToUser(wrongporttype)
 
 
     def messageToUser(self, messagetext):
@@ -191,58 +269,74 @@ class Addthread(threading.Thread):
 
 class Addremotethread(threading.Thread):
 
-    def __init__(self, localdb, remotedb, channellist, remotesessionid, sessionid, shouldend):
+    def __init__(self, localdb, remotedb, remotesessionid, sessionid, shouldend, programquit, timeintervall):
         self.remotedb = remotedb
         self.remotesessionid = remotesessionid
         self.sessionid = sessionid
         self.shouldend = shouldend
-        self.channellist = channellist
         self.localdb = localdb
+        self.programquit = programquit
+        self.timeintervall = timeintervall
         self.latestaddtime = None
         self.latestaddfractions = None
+        self.addedalldata = False
         threading.Thread.__init__(self)
 
     def run(self):
+
         pid = configinterface.read_config('config.cfg', 'piid')
         piid = int(pid['id'])
-        while not self.shouldend.wait(10.0):                          #change hard coded wait
-            start = configinterface.read_config('config.cfg', 'remotetimestamp')
-            start = start['start']
+        while not self.addedalldata:                          #change hard coded wait
+            try:
+                if self.programquit.wait(self.timeintervall):
+                    break
+                if not self.shouldend.wait(0):
+                    sessionsettings = configinterface.read_config('config.cfg', 'latestsession')
+                    start = sessionsettings['start']
+                    end = sessionsettings['end']
+                    if not end == '':
+                        checkend = datetime.datetime.strptime(end, '%Y-%m-%d %H:%M:%S')
+                        checkstart = datetime.datetime.strptime(start, '%Y-%m-%d %H:%M:%S')
+                        if checkend > checkstart:
+                            self.addedalldata = True
 
 
-            end = datetime.datetime.now()
-            valuelist = Database.get_measurements(dbvalues=self.localdb, sessionid=self.sessionid, channelid=None, starttime=start, endtime=end)
+                    end = datetime.datetime.now()
+                    valuelist = Database.get_measurements(dbvalues=self.localdb, sessionid=self.sessionid,
+                                                          channelid=None, starttime=start, endtime=end)
+
+                    print("QUERY RESULT")
+                    print(valuelist)
+
+                    templatestaddtime = None
+                    templatestaddfractions = None
+                    new = []
+                    for row in valuelist:
+                        timestamp = row[2].strftime('%Y-%m-%d %H:%M:%S')
+                        timestampfractions = row[3]
+                        templatestaddtime = row[2].strftime('%Y-%m-%d %H:%M:%S')
+                        templatestaddfractions = row[3]
+                        data = row[4]
+                        remotechannel = row[1]+60*(piid-1)
+                        if not(timestamp == self.latestaddtime and timestampfractions == self.latestaddfractions):
+                            new.append((self.remotesessionid, remotechannel, timestamp, timestampfractions, data))
+
+                    self.latestaddtime = templatestaddtime
+                    self.latestaddfractions = templatestaddfractions
 
 
-            print("QUERY RESULT")
-            print(valuelist)
+                    print("MODIFIED RESULT")
+                    print(new)
 
-            templatestaddtime = None
-            templatestaddfractions = None
-            new = []
-            for row in valuelist:
-                timestamp = row[2].strftime('%Y-%m-%d %H:%M:%S')
-                timestampfractions = row[3]
-                templatestaddtime = row[2].strftime('%Y-%m-%d %H:%M:%S')
-                templatestaddfractions = row[3]
-                data = row[4]
-                remotechannel = row[1]+60*(piid-1)
-                if not(timestamp == self.latestaddtime and timestampfractions == self.latestaddfractions):
-                    new.append((self.remotesessionid, remotechannel, timestamp, timestampfractions, data))
+                    Database.remote_add_to_database(self.remotedb, new)
 
-            self.latestaddtime = templatestaddtime
-            self.latestaddfractions = templatestaddfractions
-
-
-            print("MODIFIED RESULT")
-            print(new)
-
-            Database.remote_add_to_database(self.remotedb, new)
-
-            newstart = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            configinterface.set_config('config.cfg', 'remotetimestamp', {'start': newstart})
-
-        self.shouldend.clear()
+                    newstart = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                    configinterface.set_config('config.cfg', 'latestsession', {'start': newstart})
+                else:
+                    self.shouldend.clear()
+            except pymysql.err.Error as E:
+                print(E)
+                continue
 
 
 
@@ -346,6 +440,7 @@ class Currentsessionplot(FC):
             xaxisvalues.append(index[2])
             yaxisvalues.append(index[4])
 
+        print("UPDATE FIGURE IS STILL RUNNING")
 
         #ticks = np.arange(rawstart, rawnow, 5)
         xformater = matdates.DateFormatter('%H:%M:%S')

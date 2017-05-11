@@ -78,8 +78,8 @@ def remote_start_new_session(dbvalues, name, channels, piid):
         startfractions = start.microsecond
 
         insertsession = "insert into " \
-            "sessions(fk_pis_sessions, name_sessions, start_sessions, startfractions_sessions) " \
-            "values(%d, '%s', '%s', %f)" % (piid, name, start, startfractions)           # Insertion query for the sessions table
+            "sessions(name_sessions, start_sessions, fk_pis_sessions, startfractions_sessions) " \
+            "values('%s', '%s', %d, %f)" % (name, start, piid, startfractions)           # Insertion query for the sessions table
 
         cursor.execute(insertsession)
 
@@ -269,8 +269,8 @@ def create_remote_database(dbvalues):
 
             createsession = "create table " \
                 "sessions(id_sessions int primary key auto_increment, " \
-                "fk_pis_sessions int, " \
                 "name_sessions varchar(50), " \
+                "fk_pis_sessions int, " \
                 "start_sessions datetime, " \
                 "startfractions_sessions float, " \
                 "end_sessions datetime," \
@@ -576,7 +576,7 @@ def get_session_list(dbvalues):
                                port=int(dbvalues['port']))
 
         cursor = conn.cursor()
-        sql = "select * from sessions"                                         # Retrieves all sessions from 'sessions'
+        sql = "select id_sessions, name_sessions from sessions"                                         # Retrieves all sessions from 'sessions'
         cursor.execute(sql)
 
         result = cursor.fetchall()
