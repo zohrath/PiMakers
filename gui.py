@@ -9,6 +9,7 @@ import Database
 from PyQt5 import QtWidgets
 from PyQt5 import QtCore
 from PyQt5 import QtGui
+
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FC
 from matplotlib.figure import Figure
 import matplotlib.dates as matdates
@@ -69,12 +70,22 @@ class Main(QtWidgets.QMainWindow):
             channellist = Database.get_session_channel_list(localdb, sessionid)
         self.widgetlist.widget(self.widgetlist.visualizesessionsettingsindex).updateChannelList(channellist)
 
+
+
     def visualize(self, sessionid, channellist):
-        if remote:
+        useremote = self.widgetlist.widget(self.widgetlist.visualizedatabasesettingsindex).useRemote()
+        if useremote:
             database = configinterface.read_config('config.cfg', 'remotevisual')
         else:
             database = configinterface.read_config('config.cfg', 'default')
-        datadisplay = Datadisplay(database, sessionid)
+            sessionid = int(sessionid)
+            channellist = dict(channellist)
+            print(database)
+            print(sessionid)
+            print(channellist)
+        self.datadisplay = Datadisplay(dbvalues=database, sessionid=sessionid, channellist=channellist, ongoing=False)
+        self.datadisplay.show()
+        print("showed datadisplay")
 
 
 
@@ -211,7 +222,7 @@ class Main(QtWidgets.QMainWindow):
             if useremote:
                 remoteaddthread.start()
 
-            self.datadisplay = Datadisplay(self.localdb, self.sessionid, channellist)
+            self.datadisplay = Datadisplay(dbvalues=self.localdb, sessionid=self.sessionid, channellist=channellist, ongoing=True)
             self.datadisplay.show()
             self.widgetlist.mainmenu.sessionstarted()
             self.widgetlist.setCurrentIndex(self.widgetlist.mainmenuindex)
@@ -225,6 +236,9 @@ class Main(QtWidgets.QMainWindow):
                 self.messageToUser(message)
             if E.args[0] == 1049:
                 message = "Hittade ingen database med namnet '%s'" % (self.remotedb['name'])
+                self.messageToUser(message)
+            if E.args[0] == 1062:
+                message = "Minst två kanaler har samma namn. Kanalnamn måste vara unika"
                 self.messageToUser(message)
         except ValueError as V:
             wrongporttype = "Fel typ för 'Port', ett heltal förväntas"
@@ -330,7 +344,7 @@ class Addremotethread(threading.Thread):
 
                     Database.remote_add_to_database(self.remotedb, new)
 
-                    newstart = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                    newstart = end.strftime('%Y-%m-%d %H:%M:%S')
                     configinterface.set_config('config.cfg', 'latestsession', {'start': newstart})
                 else:
                     self.shouldend.clear()
@@ -344,7 +358,7 @@ class Addremotethread(threading.Thread):
 class Datadisplay(QtWidgets.QDialog):
     datafetched = QtCore.pyqtSignal()
 
-    def __init__(self, dbvalues, sessionid, channellist, parent=None):
+    def __init__(self, dbvalues, sessionid, channellist, ongoing, parent=None):
         self.dbvalues = dbvalues
         self.sessionid = sessionid
         channelpairs = {}
@@ -352,12 +366,17 @@ class Datadisplay(QtWidgets.QDialog):
             displaychannel = channellist[index][0]
             backendchannel = int(index)
             channelpairs[displaychannel] = backendchannel
+        print(channelpairs)
         self.channelpairs = channelpairs
         self.currentchannel = next(iter(self.channelpairs))
-
+        self.ongoing = ongoing
 
         QtWidgets.QDialog.__init__(self, parent)
         self.plot = Currentsessionplot(dbvalues, sessionid, self.channelpairs[self.currentchannel])
+        if self.ongoing == True:
+            self.plot.update_figure()
+        else:
+            self.plot.draw_figure()
 
         formlayout = QtWidgets.QFormLayout()
 
@@ -365,7 +384,7 @@ class Datadisplay(QtWidgets.QDialog):
         font.setFamily('Ubuntu')
         font.setPointSize(18)
 
-        self.label = QtWidgets.QLabel("Visar kanal %d" % int(self.currentchannel))
+        self.label = QtWidgets.QLabel("Visar kanal %s" % self.currentchannel)
         self.label.setFont(font)
 
         self.dropdown = QtWidgets.QComboBox()
@@ -390,8 +409,12 @@ class Datadisplay(QtWidgets.QDialog):
 
     def switchchannel(self):
         self.currentchannel = self.dropdown.currentText()
-        self.label.setText("Visar kanal %d" % int(self.currentchannel))
+        self.label.setText("Visar kanal %s" % self.currentchannel)
         self.plot.channelswitch(self.channelpairs[self.currentchannel])
+        if self.ongoing == True:
+            self.plot.update_figure()
+        else:
+            self.plot.draw_figure()
 
 
 class Currentsessionplot(FC):
@@ -415,7 +438,7 @@ class Currentsessionplot(FC):
         FC.updateGeometry(self)
         self.timer = QtCore.QTimer()
         self.timer.timeout.connect(self.update_figure)
-        self.update_figure()
+
 
     def channelswitch(self, newid):
         self.timer.stop()
@@ -423,7 +446,6 @@ class Currentsessionplot(FC):
         self.figure.clear()
         self.axes = self.figure.add_subplot(111)
         self.axes.hold(False)
-        self.update_figure()
 
 
     def update_figure(self):
@@ -453,7 +475,26 @@ class Currentsessionplot(FC):
         self.draw()
         self.timer.start(1000)
 
+    def draw_figure(self):
+        values = Database.get_measurements(dbvalues=self.dbvalues, sessionid=self.sessionid, channelid=self.plotchannel,
+                                           starttime=None, endtime=None)
 
+
+        xaxisvalues = []
+        yaxisvalues = []
+        for index in values:
+            xaxisvalues.append(index[2])
+            yaxisvalues.append(index[4])
+
+        # ticks = np.arange(rawstart, rawnow, 5)
+        xformater = matdates.DateFormatter('%Y-%m-%d %H:%M:%S')
+        self.axes.xaxis.set_major_formatter(xformater)
+        # self.axes.set_xticks(ticks)
+        self.axes.plot(xaxisvalues, yaxisvalues)
+        #self.axes.set_xlim([rawstart, rawnow])
+        for tick in self.axes.get_xticklabels():
+            tick.set_rotation(20)  # change this
+        self.draw()
 
 
 if __name__ == '__main__':

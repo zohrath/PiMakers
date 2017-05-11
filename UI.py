@@ -15,7 +15,7 @@ import pymysql
 class VisualiseSession(QtWidgets.QTableWidget):
 
     backPressed = QtCore.pyqtSignal()
-    okPressed = QtCore.pyqtSignal()
+    okPressed = QtCore.pyqtSignal(int, object)
     sessionChosen = QtCore.pyqtSignal(int)
 
     def __init__(self, parent=None):
@@ -29,7 +29,7 @@ class VisualiseSession(QtWidgets.QTableWidget):
         okbutton.clicked.connect(self.nextPage)
         cancelbutton.setMinimumSize(300, 100)
         cancelbutton.clicked.connect(self.goback)
-        message = QtWidgets.QLabel("Select session")
+        message = QtWidgets.QLabel("Välj en mätning att visa")
 
         self.sessionlist = QtWidgets.QListWidget()
         self.channellist = None
@@ -71,12 +71,12 @@ class VisualiseSession(QtWidgets.QTableWidget):
         self.setLayout(hbox)
 
     def nextPage(self):
-        print(self.currentchannel)
-        print(self.currentsession)
         if not self.currentsession == None:
+            print(self.currentsession)
+            print(self.channellist)
             self.okPressed.emit(self.currentsession, self.channellist)
         else:
-            self.messageToUser("Du måste välja en mätning och en kanal!")
+            self.messageToUser("Du måste välja en mätning!")
 
 
 
@@ -104,13 +104,13 @@ class VisualiseSession(QtWidgets.QTableWidget):
             self.sessionlist.addItem(widgetitem)
             self.sessionlist.itemActivated.emit(widgetitem)
             self.sessionlist.itemClicked.emit(widgetitem)
+        self.currentsession = None
 
     def updateChannelList(self, channellist):
         formattedchannellist = {}
         for index in channellist:
             formattedchannellist[index[0]] = [index[1]]
         self.channellist = formattedchannellist
-        print(self.channellist)
 
     def messageToUser(self, messagetext):
         message = QtWidgets.QMessageBox()
@@ -212,7 +212,8 @@ class Channelsettings(QtWidgets.QWidget):
     def setchanneltable(self):
 
         self.tableWidget = QtWidgets.QTableWidget()
-        self.tableWidget.setGeometry(QtCore.QRect(170, 30, 260, 411))
+        #self.tableWidget.setGeometry(QtCore.QRect(170, 30, 260, 411))
+        self.tableWidget.setMinimumSize(600, 400)
         self.tableWidget.setColumnCount(4)
         self.tableWidget.setObjectName("tableWidget")
         self.tableWidget.setRowCount(60)
@@ -263,10 +264,10 @@ class Channelsettings(QtWidgets.QWidget):
         self.tableWidget.setHorizontalHeaderItem(3, nameheader)
 
         self.tableWidget.verticalHeader().setCascadingSectionResizes(False)
-        self.tableWidget.setColumnWidth(0, 120)
-        self.tableWidget.setColumnWidth(1, 120)
-        self.tableWidget.setColumnWidth(2, 120)
-        self.tableWidget.setColumnWidth(3, 120)
+        self.tableWidget.setColumnWidth(0, 110)
+        self.tableWidget.setColumnWidth(1, 150)
+        self.tableWidget.setColumnWidth(2, 150)
+        self.tableWidget.setColumnWidth(3, 150)
 
         return self.tableWidget
 

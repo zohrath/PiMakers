@@ -299,6 +299,7 @@ def create_remote_database(dbvalues):
                 "tolerance_session_channels float, " \
                 "foreign key (fk_sessions_session_channels) " \
                 "references sessions(id_sessions), " \
+                "unique key (fk_sessions_session_channels, channelname_session_channels), " \
                 "foreign key (fk_channels_session_channels) " \
                 "references channels(id_channels), " \
                 "primary key (fk_sessions_session_channels, " \
@@ -382,6 +383,7 @@ def create_local_database(dbvalues):
                 "tolerance_session_channels float, " \
                 "foreign key (fk_sessions_session_channels)" \
                 "references sessions(id_sessions), " \
+                "unique key (fk_sessions_session_channels, channelname_session_channels), " \
                 "foreign key (fk_channels_session_channels) " \
                 "references channels(id_channels), " \
                 "primary key (fk_sessions_session_channels, " \
@@ -655,25 +657,35 @@ def get_measurements(dbvalues, sessionid, channelid, starttime, endtime):
                                port=int(dbvalues['port']))
         cursor = conn.cursor()
 
-
-        if channelid == None:
-            readsql = "SELECT * FROM measurements " \
-                "WHERE timestamp_measurements >= '%s' " \
-                "AND timestamp_measurements <= '%s' " \
-                "AND fk_sessions_measurements = %d" \
-                % (starttime,
-                endtime,
-                sessionid)                                              # Searches the database
+        if starttime == None and endtime == None:
+            if channelid == None:
+                readsql = "SELECT * FROM measurements " \
+                          "WHERE fk_sessions_measurements = %d" \
+                          % (sessionid,)  # Searches the database
+            else:
+                readsql = "SELECT * FROM measurements " \
+                          "WHERE fk_sessions_measurements = %d " \
+                          "AND fk_channels_measurements = %d" \
+                          % (sessionid,
+                             channelid)
         else:
-            readsql = "SELECT * FROM measurements " \
-                      "WHERE timestamp_measurements >= '%s' " \
-                      "AND timestamp_measurements <= '%s' " \
-                      "AND fk_sessions_measurements = %d " \
-                      "AND fk_channels_measurements = %d" \
-                      % (starttime,
-                         endtime,
-                         sessionid,
-                         channelid)
+            if channelid == None:
+                readsql = "SELECT * FROM measurements " \
+                          "WHERE fk_sessions_measurements = %d AND " \
+                          "timestamp_measurements >= '%s' AND " \
+                          "timestamp_measurements <= '%s'" \
+                          % (sessionid, starttime, endtime)  # Searches the database
+            else:
+                readsql = "SELECT * FROM measurements " \
+                          "WHERE fk_sessions_measurements = %d AND " \
+                          "timestamp_measurements >= '%s' AND " \
+                          "timestamp_measurements <= '%s' AND " \
+                          "fk_channels_measurements = %d" \
+                          % (sessionid,
+                             starttime,
+                             endtime,
+                             channelid)
+
 
 
         cursor.execute(readsql)
@@ -727,12 +739,12 @@ def add_to_database(dbvalues, list_of_items, sessionid):
         addvalues = str(templist)
         addvalues = addvalues[1:-1]                                            # Creates a string formatted for MySQL
 
-        sql1 = "INSERT INTO " \
+        sql1 = "Replace INTO " \
             "measurements(fk_sessions_measurements, " \
             "fk_channels_measurements, " \
             "timestamp_measurements, timestampfractions_measurements, " \
             "data_measurements) " \
-            "VALUES" + addvalues                                               # Adds the values to the database
+            "VALUES" + addvalues                                                # Adds the values to the database
         curs.execute(sql1)
 
         conn.commit()
