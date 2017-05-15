@@ -436,7 +436,7 @@ class Databasesettings(QtWidgets.QWidget):
             newremotevalues = {'host': host, 'user': user, 'port': port, 'name': name, 'password': password}
             configinterface.set_config('config.cfg',
                                        self.writesection,
-                                       newremotevalues)                     # Write the database settings to the configfile
+                                       newremotevalues)                      # Write the database settings to the configfile
 
         self.okPressed.emit()                                               # Emit the okPressed signal
 
@@ -691,7 +691,7 @@ class Mainmenu(QtWidgets.QWidget):
         QtWidgets.QWidget.__init__(self)
         icon = QtGui.QIcon('alert-icon--free-icons-24.png')
         self.warningButton = QtWidgets.QPushButton("Varning!")
-        self.warningButton.setMinimumSize(500, 100)
+        self.warningButton.setMinimumSize(500, 80)
         self.warningButton.setIcon(icon)
         self.warningButton.setStyleSheet("background-color: red;")
         """
@@ -709,24 +709,24 @@ class Mainmenu(QtWidgets.QWidget):
         self.warningButton.clicked.connect(self.warningPressed.emit)
 
         self.startButton = QtWidgets.QPushButton("Starta nya mätning")
-        self.startButton.setMinimumSize(500, 100)
+        self.startButton.setMinimumSize(500, 80)
         self.startButton.clicked.connect(self.newSession)                   # Creates the start session button and connects its signal
 
         self.currentButton = QtWidgets.QPushButton("Avsluta pågående mätning")
-        self.currentButton.setMinimumSize(500, 100)
+        self.currentButton.setMinimumSize(500, 80)
         self.currentButton.clicked.connect(self.currentSession)             # Creates the end current session button and connects its signal
         self.currentButton.hide()                                           # Hides the button
 
         self.visualizeButton = QtWidgets.QPushButton("Visa mätningar")
-        self.visualizeButton.setMinimumSize(500, 100)
+        self.visualizeButton.setMinimumSize(500, 80)
         self.visualizeButton.clicked.connect(self.visualize)                # Creates the visualize button and connects its signal
 
         self.helpButton = QtWidgets.QPushButton("Hjälp")
-        self.helpButton.setMinimumSize(500, 100)
+        self.helpButton.setMinimumSize(500, 80)
         self.helpButton.clicked.connect(self.help)                          # Creates the help button and connects its signal
 
         self.quitButton = QtWidgets.QPushButton("Avsluta")
-        self.quitButton.setMinimumSize(500, 100)
+        self.quitButton.setMinimumSize(500, 80)
         self.quitButton.clicked.connect(self.quit)                          # Creates the quit button and connects its signal
 
         vbox = QtWidgets.QVBoxLayout()

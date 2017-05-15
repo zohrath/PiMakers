@@ -379,8 +379,8 @@ class Addthread(threading.Thread):
             list = {}
             for item in self.channellist:
                 id = int(item)
-                list[id] = id+0.23
-                #list[id] = random.randint(1, 100)
+                #list[id] = id+0.23
+                list[id] = random.randint(1, 100)
             print(list)
             Database.add_to_database(self.localdb, list, self.sessionid)
         self.shouldend.clear()
@@ -576,7 +576,7 @@ class Currentsessionplot(FC):
 
     def updatefigure(self):
         rawnow = datetime.datetime.now()
-        rawstart = rawnow - datetime.timedelta(seconds=100000)
+        rawstart = rawnow - datetime.timedelta(seconds=100)
         now = rawnow.strftime('%Y-%m-%d %H:%M:%S')
         start = rawstart.strftime('%Y-%m-%d %H:%M:%S')
         values = Database.get_measurements(dbvalues=self.dbvalues, sessionid=self.sessionid, channelid=self.plotchannel,
@@ -637,5 +637,5 @@ if __name__ == '__main__':
     Database.create_local_database(local)
     app = QtWidgets.QApplication(sys.argv)
     window = Main()
-    window.show()
+    window.showFullScreen()
     sys.exit(app.exec_())
