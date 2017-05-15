@@ -578,7 +578,7 @@ def get_session_list(dbvalues):
                                port=int(dbvalues['port']))
 
         cursor = conn.cursor()
-        sql = "select id_sessions, name_sessions from sessions"                                         # Retrieves all sessions from 'sessions'
+        sql = "select id_sessions, name_sessions from sessions"                 # Retrieves all sessions from 'sessions'
         cursor.execute(sql)
 
         result = cursor.fetchall()

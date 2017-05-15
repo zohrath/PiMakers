@@ -2,126 +2,206 @@ import sys
 import threading
 import pymysql
 import configinterface
-import numpy as np
 import configparser
 import Database
-
-from PyQt5 import QtWidgets
-from PyQt5 import QtCore
-from PyQt5 import QtGui
-
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FC
-from matplotlib.figure import Figure
-import matplotlib.dates as matdates
 import datetime
 import UI
 import random
 import ast
+import pyqtgraph as pg
+import numpy
+
+from PyQt5 import QtWidgets
+from PyQt5 import QtCore
+from PyQt5 import QtGui
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FC
+from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NT
+from matplotlib.figure import Figure
+import matplotlib.dates as matdates
+
 
 
 class Main(QtWidgets.QMainWindow):
-
-    def __init__(self, parent=None):
+    def __init__(self):
+        """
+        Creates the main window of the application
+        """
         self.sessionrunning = False
         piid = configinterface.read_config('config.cfg', 'piid')
         self.piid = int(piid['id'])
 
-
-        QtWidgets.QMainWindow.__init__(self, parent)
-        self.widgetlist = UI.UIpages()
+        QtWidgets.QMainWindow.__init__(self)
+        self.widgetlist = UI.UIpages()                                      # Creates a stacked widget containing the UI pages of the application
         self.widgetlist.setCurrentIndex(self.widgetlist.mainmenuindex)
-        self.setCentralWidget(self.widgetlist)
+        self.setCentralWidget(self.widgetlist)                              # Displays the mainmenu
+
         self.shouldend = threading.Event()
-        self.shouldendremote = threading.Event()
+        self.shouldendremote = threading.Event()                            # Initialize events for communication with other threads
         self.programquit = threading.Event()
-        self.set_connections()
-        self.checkforabortedsession()
+
+        self.set_connections()                                              # Connects the main window to respond to user interactions
+
+        self.checkforabortedsession()                                       # Checks if the last program session was aborted before a measuring session was ended
 
     def set_connections(self):
-        self.widgetlist.widget(self.widgetlist.mainmenuindex).quitSignal.connect(self.quit)
-        self.widgetlist.widget(self.widgetlist.mainmenuindex).sessionSignal.connect(self.showchannelsettings)
-        self.widgetlist.widget(self.widgetlist.mainmenuindex).helpSignal.connect(self.showhelppage)
-        self.widgetlist.widget(self.widgetlist.mainmenuindex).currentSignal.connect(self.endcurrentsession)
-        self.widgetlist.widget(self.widgetlist.mainmenuindex).visualizeSignal.connect(self.showvisualizesettings)
+        """
+        Connects the signals of the UI pages to various slots. 
+        This controls how the application responds to user interaction
+        :return: 
+        """
+        self.widgetlist.widget(self.widgetlist.mainmenuindex)\
+            .quitSignal.connect(self.quit)
+        self.widgetlist.widget(self.widgetlist.mainmenuindex)\
+            .sessionSignal.connect(self.showchannelsettings)
+        self.widgetlist.widget(self.widgetlist.mainmenuindex)\
+            .helpSignal.connect(self.showhelppage)
+        self.widgetlist.widget(self.widgetlist.mainmenuindex)\
+            .currentSignal.connect(self.endcurrentsession)
+        self.widgetlist.widget(self.widgetlist.mainmenuindex)\
+            .visualizeSignal.connect(self.showvisualizesettings)            # Connects the signals emitted by the main menu buttons
+        self.widgetlist.widget(self.widgetlist.mainmenuindex)\
+            .warningPressed.connect(self.explainWarning)
 
-        self.widgetlist.widget(self.widgetlist.databasesettingsindex).cancelPressed.connect(self.showchannelsettings)
-        self.widgetlist.widget(self.widgetlist.databasesettingsindex).okPressed.connect(self.startsession)
 
-        self.widgetlist.widget(self.widgetlist.helppageindex).cancelPressed.connect(self.showmainmenu)
-        self.widgetlist.widget(self.widgetlist.currentsessionindex).cancelPressed.connect(self.showmainmenu)
+        self.widgetlist.widget(self.widgetlist.currentsessionindex)\
+            .cancelPressed.connect(self.showmainmenu)                       # Connects the signal emitted by the 'Avsluta mätning' in the main menu
 
-        self.widgetlist.widget(self.widgetlist.channelsettingsindex).backPressed.connect(self.showmainmenu)
-        self.widgetlist.widget(self.widgetlist.channelsettingsindex).okPressed.connect(self.showdatabasesettings)
+        self.widgetlist.widget(self.widgetlist.databasesettingsindex)\
+            .cancelPressed.connect(self.showchannelsettings)
+        self.widgetlist.widget(self.widgetlist.databasesettingsindex)\
+            .okPressed.connect(self.startsession)                           # Connects the signals emitted by the databasesettings page
 
-        self.widgetlist.widget(self.widgetlist.visualizedatabasesettingsindex).cancelPressed.connect(self.showmainmenu)
-        self.widgetlist.widget(self.widgetlist.visualizedatabasesettingsindex).okPressed.connect(self.showsessionlist)
+        self.widgetlist.widget(self.widgetlist.helppageindex)\
+            .cancelPressed.connect(self.showmainmenu)                       # Connects the signals emitted by the helppage
 
-        self.widgetlist.widget(self.widgetlist.visualizesessionsettingsindex).backPressed.connect(self.showvisualizesettings)
-        self.widgetlist.widget(self.widgetlist.visualizesessionsettingsindex).sessionChosen.connect(self.fetchChannels)
-        self.widgetlist.widget(self.widgetlist.visualizesessionsettingsindex).okPressed.connect(self.visualize)
+        self.widgetlist.widget(self.widgetlist.channelsettingsindex)\
+            .backPressed.connect(self.showmainmenu)
+        self.widgetlist.widget(self.widgetlist.channelsettingsindex)\
+            .okPressed.connect(self.showdatabasesettings)                   # Connects the signals emitted by channelsettings page
+
+        self.widgetlist.widget(self.widgetlist.visualizedatabasesettingsindex)\
+            .cancelPressed.connect(self.showmainmenu)
+        self.widgetlist.widget(self.widgetlist.visualizedatabasesettingsindex)\
+            .okPressed.connect(self.showsessionlist)                        # Connects the signals emitted by the databasesettings page for visualizing a measuring session
+
+        self.widgetlist.widget(self.widgetlist.visualizesessionsettingsindex)\
+            .backPressed.connect(self.showvisualizesettings)
+        self.widgetlist.widget(self.widgetlist.visualizesessionsettingsindex)\
+            .sessionChosen.connect(self.fetchChannels)
+        self.widgetlist.widget(self.widgetlist.visualizesessionsettingsindex)\
+            .okPressed.connect(self.visualize)                              # Connects the signals emitted by the visualize session page
+
+    def explainWarning(self):
+        message = "Varning: Anslutningen till den databas som används i mätningen är nere. \n" \
+                  "Mätningen kommer att fortsätta lokalt samtidigt som anslutningen försöker återuprättas. \n" \
+                  "Varningssymbolen i startmenyn kommer att försvinna när anslutningen är återupprättad."
+        self.messageToUser(messagetext=message, yesbuttontext=None, closebuttontext="Stäng")
+
 
     def fetchChannels(self, sessionid):
-        useremote = self.widgetlist.widget(self.widgetlist.visualizedatabasesettingsindex).useRemote()
-        if useremote:
-            remotedb = configinterface.read_config('config.cfg', 'remotevisual')
-            channellist = Database.get_session_channel_list(remotedb, sessionid)
-        else:
-            localdb = configinterface.read_config('config.cfg', 'default')
-            channellist = Database.get_session_channel_list(localdb, sessionid)
-        self.widgetlist.widget(self.widgetlist.visualizesessionsettingsindex).updateChannelList(channellist)
+        """
+        Uses a session id to fetch all channels connected to the id from a database
+        :param sessionid: An int representing the session id to be used in the database search
+        :return: 
+        """
+        useremote = \
+            self.widgetlist.\
+                widget(self.widgetlist.visualizedatabasesettingsindex)\
+                .useRemote()                                                # Checks if the local or a remote database should be searched
+        if useremote:                                                       # If remote, get remote channels
+            remotedb = \
+                configinterface.read_config('config.cfg', 'remotevisual')
+            channellist = \
+                Database.get_session_channel_list(remotedb, sessionid)
+        else:                                                               # Else, get local channels
+            localdb = \
+                configinterface.read_config('config.cfg', 'default')
+            channellist = \
+                Database.get_session_channel_list(localdb, sessionid)
+
+        self.widgetlist.widget(self.widgetlist.visualizesessionsettingsindex)\
+            .updateChannelList(channellist)                                 # Use the channels to update the channel list on the session settings for the visualize page
 
 
 
     def visualize(self, sessionid, channellist):
-        useremote = self.widgetlist.widget(self.widgetlist.visualizedatabasesettingsindex).useRemote()
-        if useremote:
+        """
+        Uses a session id and a list of channels to display related data in a new window
+        :param sessionid: An int representing the session id to fetch data from
+        :param channellist: a dictionary where the keys are channel ids and the values 
+        are lists where the first item should be the display name of the channel
+        Example: {1: ['Temperature Room 1', 20.0, 'Celsius'], 2: ['Weight Room 2', 2.34, 'Kilograms']}
+        :return: 
+        """
+        useremote = \
+            self.widgetlist.\
+                widget(self.widgetlist.visualizedatabasesettingsindex)\
+                .useRemote()                                                # Checks the settings from the visualize page to see if local or remote database should be used in the visualization
+
+        if useremote:                                                       # If remote get remote database settings
             database = configinterface.read_config('config.cfg', 'remotevisual')
-        else:
+        else:                                                               # Else, get local database settings
             database = configinterface.read_config('config.cfg', 'default')
-            sessionid = int(sessionid)
-            channellist = dict(channellist)
-            print(database)
-            print(sessionid)
-            print(channellist)
-        self.datadisplay = Datadisplay(dbvalues=database, sessionid=sessionid, channellist=channellist, ongoing=False)
+
+        self.datadisplay = Datadisplay(dbvalues=database,
+                                       sessionid=sessionid,
+                                       channellist=channellist,
+                                       ongoing=False,
+                                       timeintervall=1)                       # Displays data from the database in a new window
         self.datadisplay.show()
-        print("showed datadisplay")
+        #print("showed datadisplay")
 
 
 
 
     def checkforabortedsession(self):
-        with open('config.cfg', 'r+') as configfile:
+        """
+        Checks if the program was terminated before a session was ended and adds 
+        :return: 
+        """
+        with open('config.cfg', 'r+') as configfile:                        # Check if the configfile has a latestsession section
             parser = configparser.ConfigParser()
             parser.read_file(configfile)
             hassection = parser.has_section('latestsession')
-            print(hassection)
-        if hassection:
+        if hassection:                                                      # If the configfile has the section
+            hasremote = parser.has_option('latestsession', 'remotedatabase')
+            channels = configinterface.read_config('config.cfg', 'channels')
+            channellist = {}
+            for index in channels:
+                channellist[index] = ast.literal_eval(channels[index])
             sessionsettings = configinterface.read_config('config.cfg', 'latestsession')
             start = sessionsettings['start']
-            end = sessionsettings['end']
-            if not end == '':
+            end = sessionsettings['end']                                    # Read the section
+            self.localdb = ast.literal_eval(sessionsettings['localdatabase'])
+            self.localsessionid = int(sessionsettings['localsessionid'])
+            timeintervall = float(sessionsettings['timeintervall'])
+            if end == '':
                 startvalue = datetime.datetime.strptime(start, "%Y-%m-%d %H:%M:%S")
-                endvalue = datetime.datetime.strptime(end, "%Y-%m-%d %H:%M:%S")
-                print("I am in checkforsession")
-                if endvalue > startvalue:
-                    remotedb = sessionsettings['remotedatabase']
-                    remotedb = ast.literal_eval(remotedb)
+                addthread = Addthread(localdb=self.localdb, sessionid=self.localsessionid, channellist=channellist, shouldend=self.shouldend, timeintervall=timeintervall)
+                addthread.start()
+                if hasremote:
+                    self.usingremote = True
+                    self.remotedb = ast.literal_eval(sessionsettings['remotedatabase'])
+                    self.remotesessionid = int(sessionsettings['remotesessionid'])
+                    remoteaddhtread = Addremotethread(remotedb=self.remotedb, remotesessionid=self.remotesessionid, localdb=self.localdb, sessionid=self.localsessionid, shouldend=self.shouldendremote, programquit=self.programquit, timeintervall=timeintervall)
+                    remoteaddhtread.noConnection.connect(self.warnuser)
+                    remoteaddhtread.connectionEstablished.connect(self.stopwarninguser)
+                    remoteaddhtread.start()
+                else:
+                    self.usingremote = False
+                self.sessionrunning = True
+                self.widgetlist.mainmenu.sessionstarted()
+                self.datadisplay = Datadisplay(dbvalues=self.localdb, sessionid=self.localsessionid,
+                                               channellist=channellist, ongoing=True, timeintervall=timeintervall)
+                self.datadisplay.show()
 
-                    localdb = sessionsettings['localdatabase']
-                    localdb = ast.literal_eval(localdb)
-                    remotesessionid = int(sessionsettings['remotesessionid'])
-                    localsessionid = int(sessionsettings['localsessionid'])
-                    queue = threading.Event()
-                    queue.set()
-                    remoteaddthread = Addremotethread(remotedb=remotedb, localdb=localdb,
-                                                      remotesessionid=remotesessionid, sessionid=localsessionid,
-                                                      shouldend=queue, programquit=self.programquit, timeintervall=0)
-                    print("Starting remote thread")
-                    remoteaddthread.start()
-                    message = self.messageToUser("Den senaste mätningen avslutades genom att programmet stängdes ned, en mätning bör avslutas innan programmet stängs ned \n"
-                                                 "Data från den senaste sessionen kommer nu att föras över till en databas")
 
+    def warnuser(self):
+        self.widgetlist.mainmenu.displayWarning(True)
+        #self.explainWarning()
+
+    def stopwarninguser(self):
+        self.widgetlist.mainmenu.displayWarning(False)
 
     def showsessionlist(self):
         sessionlist = self.getsessions()
@@ -135,9 +215,11 @@ class Main(QtWidgets.QMainWindow):
         self.widgetlist.setCurrentIndex(self.widgetlist.databasesettingsindex)
 
     def showhelppage(self):
+        """
         url = QtCore.QUrl("UsefulnessHarpers.pdf")
         pdfhandler = QtGui.QDesktopServices()
         pdfhandler.openUrl(url)
+        """
         self.widgetlist.setCurrentIndex(self.widgetlist.helppageindex)
 
     def showmainmenu(self):
@@ -148,20 +230,26 @@ class Main(QtWidgets.QMainWindow):
 
     def quit(self):
         if self.sessionrunning:
+            self.messageToUser(messagetext="Mätning pågår, avsluta mätning och stäng programmet?", yesbuttontext="Ja", closebuttontext="Nej")
+        else:
+            self.closeapplication()
+
+    def closeapplication(self):
+        if self.sessionrunning:
             self.endcurrentsession()
         self.programquit.set()
         self.close()
 
     def endcurrentsession(self):
-        useremote = self.widgetlist.widget(self.widgetlist.databasesettingsindex).useRemote()
+        self.programquit.set()
         self.shouldend.set()
         endtimestamp = datetime.datetime.now()
         endtimestamp = endtimestamp.strftime("%Y-%m-%d %H:%M:%S")
         configinterface.set_config('config.cfg', 'latestsession', {'end': endtimestamp})
 
         self.widgetlist.mainmenu.sessionended()
-        Database.end_current_session(self.localdb, self.sessionid)
-        if useremote:
+        Database.end_current_session(self.localdb, self.localsessionid)
+        if self.usingremote:
             self.shouldendremote.set()
             Database.end_current_session(self.remotedb, self.remotesessionid)
 
@@ -183,46 +271,54 @@ class Main(QtWidgets.QMainWindow):
 
     def startsession(self):
         try:
-            useremote = self.widgetlist.widget(self.widgetlist.databasesettingsindex).useRemote()
+            self.usingremote = self.widgetlist.widget(self.widgetlist.databasesettingsindex).useRemote()
             self.localdb = configinterface.read_config('config.cfg', 'default')
-
-            channellist = configinterface.read_config('config.cfg', 'channels')
+            sessionname = self.widgetlist.widget(self.widgetlist.channelsettingsindex).sessionname
+            channellist = self.widgetlist.widget(self.widgetlist.channelsettingsindex).channellist
+            timeintervall = self.widgetlist.widget(self.widgetlist.channelsettingsindex).sessionintervall
 
             for index in channellist:
                 channellist[index] = ast.literal_eval(channellist[index])
 
-            self.sessionid = Database.start_new_session(dbvalues=self.localdb, name='placeholdername', channels=channellist)
+            self.localsessionid = Database.start_new_session(dbvalues=self.localdb, name=sessionname, channels=channellist)
             print("Started local session")
-            addthread = Addthread(localdb=self.localdb, sessionid=self.sessionid, shouldend=self.shouldend, channellist=channellist)
+            addthread = Addthread(localdb=self.localdb, sessionid=self.localsessionid, shouldend=self.shouldend, channellist=channellist, timeintervall=timeintervall)
 
-            if useremote:
+            if self.usingremote:
                 self.remotedb = configinterface.read_config('config.cfg', 'remote')
                 remotechannels = self.convertToRemoteChannels(channellist)
-                self.remotesessionid = Database.remote_start_new_session(dbvalues=self.remotedb, name='placeholdername',
+                self.remotesessionid = Database.remote_start_new_session(dbvalues=self.remotedb, name=sessionname,
                                                                         channels=remotechannels, piid=self.piid)
                 print("Started remote session")
 
 
 
                 remoteaddthread = Addremotethread(remotedb=self.remotedb, localdb=self.localdb,
-                                                remotesessionid=self.remotesessionid, sessionid=self.sessionid, shouldend=self.shouldendremote, programquit=self.programquit, timeintervall=10)
+                                                remotesessionid=self.remotesessionid, sessionid=self.localsessionid, shouldend=self.shouldendremote, programquit=self.programquit, timeintervall=timeintervall)
             addthread.start()
 
 
             now = datetime.datetime.now()
             startsearchvalue = now.strftime('%Y-%m-%d %H:%M:%S')
             startfractions = str(now.microsecond)
-            writeitem = {'start': startsearchvalue, 'startfractions': startfractions, 'localdatabase': str(self.localdb), 'localsessionid': str(self.sessionid), 'end': ''}
-            if useremote:
+            writeitem = {'start': startsearchvalue, 'startfractions': startfractions, 'localdatabase': str(self.localdb), 'localsessionid': str(self.localsessionid), 'timeintervall': str(timeintervall), 'end': ''}
+            if self.usingremote:
                 writeitem['remotedatabase'] = str(self.remotedb)
                 writeitem['remotesessionid'] = str(self.remotesessionid)
+            parser = configparser.ConfigParser()
+            with open('config.cfg', 'r+') as r:
+                parser.read_file(r)
+                parser.remove_section('latestsession')
+            with open('config.cfg', 'w+') as w:
+                parser.write(w)
             configinterface.set_config('config.cfg', 'latestsession', writeitem)
 
-
-            if useremote:
+            if self.usingremote:
+                remoteaddthread.connectionEstablished.connect(self.stopwarninguser)
+                remoteaddthread.noConnection.connect(self.warnuser)
                 remoteaddthread.start()
 
-            self.datadisplay = Datadisplay(dbvalues=self.localdb, sessionid=self.sessionid, channellist=channellist, ongoing=True)
+            self.datadisplay = Datadisplay(dbvalues=self.localdb, sessionid=self.localsessionid, channellist=channellist, ongoing=True, timeintervall=timeintervall)
             self.datadisplay.show()
             self.widgetlist.mainmenu.sessionstarted()
             self.widgetlist.setCurrentIndex(self.widgetlist.mainmenuindex)
@@ -230,26 +326,33 @@ class Main(QtWidgets.QMainWindow):
         except pymysql.err.Error as E:
             if E.args[0] == 1045:
                 message = "Anslutning nekad, se över port, användare och lösenord"
-                self.messageToUser(message)
+                self.messageToUser(messagetext=message, closebuttontext="Stäng", yesbuttontext=None)
             if E.args[0] == 2003:
                 message = "Kunde inte anluta till host: '%s'" % (self.remotedb['host'])
-                self.messageToUser(message)
+                self.messageToUser(messagetext=message, closebuttontext="Stäng", yesbuttontext=None)
             if E.args[0] == 1049:
                 message = "Hittade ingen database med namnet '%s'" % (self.remotedb['name'])
-                self.messageToUser(message)
+                self.messageToUser(messagetext=message, closebuttontext="Stäng", yesbuttontext=None)
             if E.args[0] == 1062:
                 message = "Minst två kanaler har samma namn. Kanalnamn måste vara unika"
-                self.messageToUser(message)
+                self.messageToUser(messagetext=message, closebuttontext="Stäng", yesbuttontext=None)
         except ValueError as V:
             wrongporttype = "Fel typ för 'Port', ett heltal förväntas"
-            self.messageToUser(wrongporttype)
+            self.messageToUser(messagetext=wrongporttype, closebuttontext="Stäng", yesbuttontext=None)
 
 
-    def messageToUser(self, messagetext):
+
+
+    def messageToUser(self, messagetext, yesbuttontext, closebuttontext):
         message = QtWidgets.QMessageBox()
         message.setMinimumSize(1000, 800)
         message.setText(messagetext)
-        message.setStandardButtons(QtWidgets.QMessageBox.Close)
+        if not yesbuttontext == None:
+            yesbutton = message.addButton(yesbuttontext, QtWidgets.QMessageBox.YesRole)
+            yesbutton.clicked.connect(self.closeapplication)
+        if not closebuttontext == None:
+            closebutton = message.addButton(closebuttontext, QtWidgets.QMessageBox.YesRole)
+            closebutton.clicked.connect(message.close)
         message.exec_()
 
     def convertToRemoteChannels(self, channellist):
@@ -262,28 +365,32 @@ class Main(QtWidgets.QMainWindow):
 
 class Addthread(threading.Thread):
 
-    def __init__(self, localdb, sessionid, channellist, shouldend):
+    def __init__(self, localdb, sessionid, channellist, shouldend, timeintervall):
         self.localdb = localdb
         self.sessionid = sessionid
         self.shouldend = shouldend
         self.channellist = channellist
+        self.timeintervall = timeintervall
         threading.Thread.__init__(self)
 
     def run(self):
 
-        while not self.shouldend.wait(1.0):                             #change hard coded wait
+        while not self.shouldend.wait(self.timeintervall):                             #change hard coded wait
             list = {}
             for item in self.channellist:
                 id = int(item)
-                list[id] = random.randint(1, 100)
+                list[id] = id+0.23
+                #list[id] = random.randint(1, 100)
             print(list)
             Database.add_to_database(self.localdb, list, self.sessionid)
         self.shouldend.clear()
 
 
-class Addremotethread(threading.Thread):
+class Addremotethread(QtCore.QThread):
+    noConnection = QtCore.pyqtSignal()
+    connectionEstablished = QtCore.pyqtSignal()
 
-    def __init__(self, localdb, remotedb, remotesessionid, sessionid, shouldend, programquit, timeintervall):
+    def __init__(self, localdb, remotedb, remotesessionid, sessionid, shouldend, programquit, timeintervall, parent=None):
         self.remotedb = remotedb
         self.remotesessionid = remotesessionid
         self.sessionid = sessionid
@@ -294,17 +401,18 @@ class Addremotethread(threading.Thread):
         self.latestaddtime = None
         self.latestaddfractions = None
         self.addedalldata = False
-        threading.Thread.__init__(self)
+        self.databaseisdown = False
+        QtCore.QThread.__init__(self, parent)
 
     def run(self):
 
         pid = configinterface.read_config('config.cfg', 'piid')
         piid = int(pid['id'])
-        while not self.addedalldata:                          #change hard coded wait
+        while not self.addedalldata:
             try:
-                if self.programquit.wait(self.timeintervall):
-                    break
-                if not self.shouldend.wait(0):
+                if self.programquit.wait(0):
+                    self.timeintervall = 0
+                if not self.shouldend.wait(self.timeintervall*10):
                     sessionsettings = configinterface.read_config('config.cfg', 'latestsession')
                     start = sessionsettings['start']
                     end = sessionsettings['end']
@@ -335,22 +443,30 @@ class Addremotethread(threading.Thread):
                         if not(timestamp == self.latestaddtime and timestampfractions == self.latestaddfractions):
                             new.append((self.remotesessionid, remotechannel, timestamp, timestampfractions, data))
 
-                    self.latestaddtime = templatestaddtime
-                    self.latestaddfractions = templatestaddfractions
-
 
                     print("MODIFIED RESULT")
                     print(new)
+                    if not new == []:
+                        Database.remote_add_to_database(self.remotedb, new)
 
-                    Database.remote_add_to_database(self.remotedb, new)
+                    self.latestaddtime = templatestaddtime
+                    self.latestaddfractions = templatestaddfractions
 
-                    newstart = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                    if self.databaseisdown:
+                        self.connectionEstablished.emit()
+                        self.databaseisdown = False
+
+                    newstart = end.strftime('%Y-%m-%d %H:%M:%S')
+                    #datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                     configinterface.set_config('config.cfg', 'latestsession', {'start': newstart})
                 else:
                     self.shouldend.clear()
             except pymysql.err.Error as E:
+                if not self.databaseisdown:
+                    self.noConnection.emit()
+                    self.databaseisdown = True
                 print(E)
-                continue
+        self.programquit.clear()
 
 
 
@@ -358,7 +474,7 @@ class Addremotethread(threading.Thread):
 class Datadisplay(QtWidgets.QDialog):
     datafetched = QtCore.pyqtSignal()
 
-    def __init__(self, dbvalues, sessionid, channellist, ongoing, parent=None):
+    def __init__(self, dbvalues, sessionid, channellist, ongoing, timeintervall, parent=None):
         self.dbvalues = dbvalues
         self.sessionid = sessionid
         channelpairs = {}
@@ -366,19 +482,24 @@ class Datadisplay(QtWidgets.QDialog):
             displaychannel = channellist[index][0]
             backendchannel = int(index)
             channelpairs[displaychannel] = backendchannel
-        print(channelpairs)
         self.channelpairs = channelpairs
         self.currentchannel = next(iter(self.channelpairs))
         self.ongoing = ongoing
 
         QtWidgets.QDialog.__init__(self, parent)
-        self.plot = Currentsessionplot(dbvalues, sessionid, self.channelpairs[self.currentchannel])
-        if self.ongoing == True:
-            self.plot.update_figure()
-        else:
-            self.plot.draw_figure()
 
-        formlayout = QtWidgets.QFormLayout()
+        self.plot = Currentsessionplot(dbvalues=dbvalues,
+                                       sessionid=sessionid,
+                                       plotchannel=self.channelpairs[self.currentchannel],
+                                       timeintervall=timeintervall,
+                                       figuretitle=self.currentchannel)
+        self.toolbar = NT(self.plot, self)
+
+        if self.ongoing:
+            self.plot.updatefigure()
+        else:
+            self.plot.drawfigure()
+
 
         font = QtGui.QFont()
         font.setFamily('Ubuntu')
@@ -392,11 +513,10 @@ class Datadisplay(QtWidgets.QDialog):
         for item in self.channelpairs:
             self.dropdown.addItem(item)
 
-        formlayout.insertRow(0, self.label, self.dropdown)
-
         vbox = QtWidgets.QVBoxLayout()
         vbox.addStretch(1)
-        vbox.addLayout(formlayout)
+        vbox.addWidget(self.dropdown)
+        vbox.addWidget(self.toolbar)
         vbox.addWidget(self.plot)
         vbox.addStretch(1)
 
@@ -409,23 +529,28 @@ class Datadisplay(QtWidgets.QDialog):
 
     def switchchannel(self):
         self.currentchannel = self.dropdown.currentText()
-        self.label.setText("Visar kanal %s" % self.currentchannel)
-        self.plot.channelswitch(self.channelpairs[self.currentchannel])
+        newtitle = "Kanal: %s" % self.currentchannel
+        self.plot.channelswitch(newid=self.channelpairs[self.currentchannel], newtitle=newtitle)
         if self.ongoing == True:
-            self.plot.update_figure()
+            pass
+            self.plot.updatefigure()
         else:
-            self.plot.draw_figure()
+            self.plot.drawfigure()
+
+
 
 
 class Currentsessionplot(FC):
 
-    def __init__(self, dbvalues, sessionid, plotchannel):
+    def __init__(self, dbvalues, sessionid, plotchannel, timeintervall, figuretitle):
         self.dbvalues = dbvalues
         self.sessionid = sessionid
         self.plotchannel = plotchannel
-
+        self.timeintervall = timeintervall
+        figuretitle = "Kanal: %s" % figuretitle
 
         self.figure = Figure(figsize=(10, 10), dpi=100)
+        self.figure.suptitle(figuretitle)
         self.axes = self.figure.add_subplot(111)
         self.axes.hold(False)
 
@@ -437,20 +562,21 @@ class Currentsessionplot(FC):
 
         FC.updateGeometry(self)
         self.timer = QtCore.QTimer()
-        self.timer.timeout.connect(self.update_figure)
+        self.timer.timeout.connect(self.updatefigure)
 
 
-    def channelswitch(self, newid):
+    def channelswitch(self, newid, newtitle):
         self.timer.stop()
         self.plotchannel = newid
         self.figure.clear()
         self.axes = self.figure.add_subplot(111)
+        self.figure.suptitle(newtitle, fontsize=20)
         self.axes.hold(False)
 
 
-    def update_figure(self):
+    def updatefigure(self):
         rawnow = datetime.datetime.now()
-        rawstart = rawnow - datetime.timedelta(seconds=100)
+        rawstart = rawnow - datetime.timedelta(seconds=100000)
         now = rawnow.strftime('%Y-%m-%d %H:%M:%S')
         start = rawstart.strftime('%Y-%m-%d %H:%M:%S')
         values = Database.get_measurements(dbvalues=self.dbvalues, sessionid=self.sessionid, channelid=self.plotchannel,
@@ -471,14 +597,13 @@ class Currentsessionplot(FC):
         self.axes.plot(xaxisvalues, yaxisvalues)
         self.axes.set_xlim([rawstart, rawnow])
         for tick in self.axes.get_xticklabels():
-            tick.set_rotation(20)                           # change this
+            tick.set_rotation(10)                           # change this
         self.draw()
-        self.timer.start(1000)
+        self.timer.start(1000*self.timeintervall)
 
-    def draw_figure(self):
+    def drawfigure(self):
         values = Database.get_measurements(dbvalues=self.dbvalues, sessionid=self.sessionid, channelid=self.plotchannel,
                                            starttime=None, endtime=None)
-
 
         xaxisvalues = []
         yaxisvalues = []
@@ -487,14 +612,15 @@ class Currentsessionplot(FC):
             yaxisvalues.append(index[4])
 
         # ticks = np.arange(rawstart, rawnow, 5)
-        xformater = matdates.DateFormatter('%Y-%m-%d %H:%M:%S')
-        self.axes.xaxis.set_major_formatter(xformater)
+        #xformater = matdates.DateFormatter('%Y-%m-%d %H:%M:%S')
+        #self.axes.xaxis.set_major_formatter(xformater)
         # self.axes.set_xticks(ticks)
         self.axes.plot(xaxisvalues, yaxisvalues)
         #self.axes.set_xlim([rawstart, rawnow])
         for tick in self.axes.get_xticklabels():
-            tick.set_rotation(20)  # change this
+            tick.set_rotation(10)  # change this
         self.draw()
+
 
 
 if __name__ == '__main__':
@@ -511,5 +637,5 @@ if __name__ == '__main__':
     Database.create_local_database(local)
     app = QtWidgets.QApplication(sys.argv)
     window = Main()
-    window.showFullScreen()
+    window.show()
     sys.exit(app.exec_())
