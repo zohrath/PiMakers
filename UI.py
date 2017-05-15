@@ -136,9 +136,9 @@ class Channelsettings(QtWidgets.QWidget):
         buttons = QtWidgets.QDialogButtonBox()
         okbutton = buttons.addButton('Nästa', buttons.AcceptRole)
         cancelbutton = buttons.addButton('Tillbaka', buttons.RejectRole)
-        okbutton.setMinimumSize(300, 100)
+        okbutton.setMinimumSize(300, 80)
         okbutton.clicked.connect(self._nextPage)
-        cancelbutton.setMinimumSize(300, 100)
+        cancelbutton.setMinimumSize(300, 80)
         cancelbutton.clicked.connect(self._goback)                           # Creates the buttons of the page
 
         self._setchanneltable()                                              # Cretes the table of channels displayed on the page
@@ -288,7 +288,7 @@ class Channelsettings(QtWidgets.QWidget):
         :return: A QtWidgets.QTableWidget object representing the table created
         """
         self.tableWidget = QtWidgets.QTableWidget()
-        self.tableWidget.setMinimumSize(600, 400)
+        self.tableWidget.setMinimumSize(300, 200)
         self.tableWidget.setColumnCount(4)
         self.tableWidget.setObjectName("tableWidget")
         self.tableWidget.setRowCount(60)
@@ -326,10 +326,10 @@ class Channelsettings(QtWidgets.QWidget):
         self.tableWidget.setHorizontalHeaderItem(3, nameheader)             # Adds a label to each column in the table
 
         self.tableWidget.verticalHeader().setCascadingSectionResizes(True)
-        self.tableWidget.setColumnWidth(0, 110)
-        self.tableWidget.setColumnWidth(1, 150)
-        self.tableWidget.setColumnWidth(2, 150)
-        self.tableWidget.setColumnWidth(3, 150)                             # Sets the sizes of the columns
+        self.tableWidget.setColumnWidth(0, 80)
+        self.tableWidget.setColumnWidth(1, 80)
+        self.tableWidget.setColumnWidth(2, 80)
+        self.tableWidget.setColumnWidth(3, 80)                             # Sets the sizes of the columns
 
 
 
@@ -363,9 +363,9 @@ class Databasesettings(QtWidgets.QWidget):
         buttons = QtWidgets.QDialogButtonBox()
         okbutton = buttons.addButton('Starta', buttons.AcceptRole)
         cancelbutton = buttons.addButton('Tillbaka', buttons.RejectRole)
-        okbutton.setMinimumSize(300, 100)
+        okbutton.setMinimumSize(200, 80)
         okbutton.clicked.connect(self.nextPage)
-        cancelbutton.setMinimumSize(300, 100)
+        cancelbutton.setMinimumSize(200, 80)
         cancelbutton.clicked.connect(self.backToMain)                       # Creates the main buttons of the page
 
         font = QtGui.QFont()
@@ -691,7 +691,7 @@ class Mainmenu(QtWidgets.QWidget):
         QtWidgets.QWidget.__init__(self)
         icon = QtGui.QIcon('alert-icon--free-icons-24.png')
         self.warningButton = QtWidgets.QPushButton("Varning!")
-        self.warningButton.setMinimumSize(500, 80)
+        self.warningButton.setMinimumSize(300, 80)
         self.warningButton.setIcon(icon)
         self.warningButton.setStyleSheet("background-color: red;")
         """
@@ -709,24 +709,24 @@ class Mainmenu(QtWidgets.QWidget):
         self.warningButton.clicked.connect(self.warningPressed.emit)
 
         self.startButton = QtWidgets.QPushButton("Starta nya mätning")
-        self.startButton.setMinimumSize(500, 80)
+        self.startButton.setMinimumSize(300, 80)
         self.startButton.clicked.connect(self.newSession)                   # Creates the start session button and connects its signal
 
         self.currentButton = QtWidgets.QPushButton("Avsluta pågående mätning")
-        self.currentButton.setMinimumSize(500, 80)
+        self.currentButton.setMinimumSize(300, 80)
         self.currentButton.clicked.connect(self.currentSession)             # Creates the end current session button and connects its signal
         self.currentButton.hide()                                           # Hides the button
 
         self.visualizeButton = QtWidgets.QPushButton("Visa mätningar")
-        self.visualizeButton.setMinimumSize(500, 80)
+        self.visualizeButton.setMinimumSize(300, 80)
         self.visualizeButton.clicked.connect(self.visualize)                # Creates the visualize button and connects its signal
 
         self.helpButton = QtWidgets.QPushButton("Hjälp")
-        self.helpButton.setMinimumSize(500, 80)
+        self.helpButton.setMinimumSize(300, 80)
         self.helpButton.clicked.connect(self.help)                          # Creates the help button and connects its signal
 
         self.quitButton = QtWidgets.QPushButton("Avsluta")
-        self.quitButton.setMinimumSize(500, 80)
+        self.quitButton.setMinimumSize(300, 80)
         self.quitButton.clicked.connect(self.quit)                          # Creates the quit button and connects its signal
 
         vbox = QtWidgets.QVBoxLayout()
