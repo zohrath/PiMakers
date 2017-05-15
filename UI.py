@@ -136,9 +136,9 @@ class Channelsettings(QtWidgets.QWidget):
         buttons = QtWidgets.QDialogButtonBox()
         okbutton = buttons.addButton('Nästa', buttons.AcceptRole)
         cancelbutton = buttons.addButton('Tillbaka', buttons.RejectRole)
-        okbutton.setMinimumSize(300, 80)
+        okbutton.setMinimumSize(200, 80)
         okbutton.clicked.connect(self._nextPage)
-        cancelbutton.setMinimumSize(300, 80)
+        cancelbutton.setMinimumSize(200, 80)
         cancelbutton.clicked.connect(self._goback)                           # Creates the buttons of the page
 
         self._setchanneltable()                                              # Cretes the table of channels displayed on the page
@@ -288,7 +288,7 @@ class Channelsettings(QtWidgets.QWidget):
         :return: A QtWidgets.QTableWidget object representing the table created
         """
         self.tableWidget = QtWidgets.QTableWidget()
-        self.tableWidget.setMinimumSize(300, 200)
+        self.tableWidget.setMinimumSize(400, 200)
         self.tableWidget.setColumnCount(4)
         self.tableWidget.setObjectName("tableWidget")
         self.tableWidget.setRowCount(60)
@@ -326,10 +326,10 @@ class Channelsettings(QtWidgets.QWidget):
         self.tableWidget.setHorizontalHeaderItem(3, nameheader)             # Adds a label to each column in the table
 
         self.tableWidget.verticalHeader().setCascadingSectionResizes(True)
-        self.tableWidget.setColumnWidth(0, 80)
-        self.tableWidget.setColumnWidth(1, 80)
-        self.tableWidget.setColumnWidth(2, 80)
-        self.tableWidget.setColumnWidth(3, 80)                             # Sets the sizes of the columns
+        self.tableWidget.setColumnWidth(0, 120)
+        self.tableWidget.setColumnWidth(1, 100)
+        self.tableWidget.setColumnWidth(2, 100)
+        self.tableWidget.setColumnWidth(3, 100)                             # Sets the sizes of the columns
 
 
 
