@@ -44,11 +44,23 @@ def set_config(file, section, optionvaluepairs):
             config.add_section(section)
         for index in optionvaluepairs:
             config.set(section, index, optionvaluepairs[index])
-        with open(file, 'w') as configfile:
+        with open(file, 'w+') as configfile:
             config.write(configfile)
         return True
     except RuntimeError as R:
         print(R)
         return False
+
+def has_section(configfile, section):
+    try:
+        parser = configparser.ConfigParser()
+        with open(configfile, 'r+') as r:
+            parser.read_file(r)
+            answer = parser.has_section(section)
+        return answer
+    except TypeError as T:
+        print('has_section Typerror')
+        print(T)
+        raise T
 
 

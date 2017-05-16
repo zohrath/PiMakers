@@ -33,10 +33,10 @@ class Visualizationsettings(QtWidgets.QWidget):
         self.currentsession = None                                          # Initializes variables used to hold session and channels information
 
         self.sessionlist.itemActivated.connect(self._sessionactivated)
-        self.sessionlist.itemClicked.connect(self._sessionactivated)         # Connects the signal emitted when a user selects an item in the list
+        self.sessionlist.itemClicked.connect(self._sessionactivated)        # Connects the signal emitted when a user selects an item in the list
 
         scrollablesessions = QtWidgets.QScrollArea()
-        scrollablesessions.setWidget(self.sessionlist)
+        scrollablesessions.setWidget(self.sessionlist)                      # Creates a scroll area
 
         vbox = QtWidgets.QVBoxLayout()
         vbox.addStretch(1)
@@ -139,12 +139,14 @@ class Channelsettings(QtWidgets.QWidget):
         okbutton.setMinimumSize(200, 80)
         okbutton.clicked.connect(self._nextPage)
         cancelbutton.setMinimumSize(200, 80)
-        cancelbutton.clicked.connect(self._goback)                           # Creates the buttons of the page
+        cancelbutton.clicked.connect(self._goback)                          # Creates the buttons of the page
 
-        self._setchanneltable()                                              # Cretes the table of channels displayed on the page
-        channelmessage = self._setmessage("Välj vilka kanaler som ska användas i mätningen")                                         # Creates the message displayed on top of the page
+        self._setchanneltable()                                             # Cretes the table of channels displayed on the page
+        channelmessage = \
+            self._setmessage("Välj vilka kanaler "
+                             "som ska användas i mätningen")                # Creates the message displayed on top of the page
 
-        input = self.sessioninfo()
+        input = self.sessioninfo()                                          # Creates session information inputs
 
 
         vbox = QtWidgets.QVBoxLayout()
@@ -191,6 +193,7 @@ class Channelsettings(QtWidgets.QWidget):
         """
         exceptionraised = False
         self.channellist = {}
+        channellistforwrite = {}
         try:
             for i in range(60):                                             # For each row in the table
                 item = self.tableWidget.item(i, 0)
@@ -203,10 +206,15 @@ class Channelsettings(QtWidgets.QWidget):
                     if channelname == "":
                         raise AttributeError
                     self.channellist[channelid] = \
+                        [channelidalias,
+                        channelname,
+                        channelunit,
+                        channeltolerance]                                   # Collect channel information and add it to the list of channels
+                    channellistforwrite[channelid] = \
                         str([channelidalias,
-                             channelname,
-                             channelunit,
-                             channeltolerance])                             # Collect channel information and add it to the list of channels
+                         channelname,
+                         channelunit,
+                         channeltolerance])
 
                     float(channeltolerance)                                 # Raises a ValueError if channeltolerance can not be converted to float
 
@@ -214,60 +222,70 @@ class Channelsettings(QtWidgets.QWidget):
             self.sessionintervall = self.intervallinput.text()
 
             try:
-                self.sessionintervall = float(self.sessionintervall)  # Otherwise, custom pyqt signal
+                self.sessionintervall = float(self.sessionintervall)        # Check if intervall is correct type
             except ValueError:
                 exceptionraised = True
                 wrongintervalltype = "Tidsintervall måste anges som ett nummer"
-                self._messageToUser(wrongintervalltype, yesbuttontext=None, closebuttontext="Stäng")
+                self._messageToUser(wrongintervalltype,
+                                    closebuttontext="Stäng")                # If not, prompt user with error message
 
-            if not self.sessionname:
+            if not self.sessionname:                                        # If no text in name field
                 noname = "Du måste namnge mätningen"
-                self._messageToUser(noname, yesbuttontext=None, closebuttontext="Stäng")
+                self._messageToUser(noname,
+                                    closebuttontext="Stäng")                # Prompt user with a message
 
-            elif not self.sessionintervall:
+            elif not self.sessionintervall:                                 # else if ni text in intervall field
                 nointervall = "Du måste ange ett tidsintervall"
-                self._messageToUser(nointervall, yesbuttontext=None, closebuttontext="Stäng")
+                self._messageToUser(nointervall,
+                                    closebuttontext="Stäng")                # Prompt user with a message
 
-            elif self.channellist == {}:  # If no channel has been selected
+            elif self.channellist == {}:                                    # If no channel has been selected
                 nochannels = "Du måste välja minst en kanal!"
-                self._messageToUser(nochannels, yesbuttontext=None,
-                                    closebuttontext="Stäng")  # Prompt the user with a message
+                self._messageToUser(nochannels,
+                                    closebuttontext="Stäng")                # Prompt the user with a message
             elif not exceptionraised:
-                self.okPressed.emit()
+                self.okPressed.emit()                                       # If no error, emit signal to change page
 
             parser = configparser.ConfigParser()
-            with open('config.cfg', 'r+') as r:
+            with open('config.cfg', 'r+') as r:                             # Reads from the configfile
                 parser.read_file(r)
-                parser.remove_section('channels')
+                parser.remove_section('channels')                           # Removes the previous channels
             with open('config.cfg', 'w+') as w:
-                parser.write(w)
-            configinterface.set_config('config.cfg', 'channels', self.channellist)
+                parser.write(w)                                             # Writes the removal to the file
+            configinterface.set_config('config.cfg',
+                                       'channels',
+                                       channellistforwrite)                 # Writes the new channels to the configfile
 
         except AttributeError:                                              # A channel is missing some input
             textmissing = \
                 "Kanal %s saknar nödvändig information!" % (channelidalias)
-            self._messageToUser(textmissing, yesbuttontext=None, closebuttontext="Stäng")                                # Tell the user which channel is missing input
+            self._messageToUser(textmissing,
+                                closebuttontext="Stäng")                    # Tell the user which channel is missing input
             self.channellist = {}
-        except ValueError as V:  # Wrong type has been inputted into the tolerance field
-            exceptionraised = True
+
+        except ValueError:                                                  # Wrong type has been inputted into the tolerance field
             wronginputtype = \
                 "Kanal %s har fel typ av tolerans, " \
                 "tolerans ska vara ett flyttal t.ex. 42.0" \
                 % (channelidalias)
-            self._messageToUser(wronginputtype, yesbuttontext=None, closebuttontext="Stäng")                             # Tell the user which channel has wrong type of tolerance
+            self._messageToUser(wronginputtype,
+                                closebuttontext="Stäng")                    # Tell the user which channel has wrong type of tolerance
             self.channellist = {}
 
 
-    def _messageToUser(self, messagetext, yesbuttontext, closebuttontext):
+    def _messageToUser(self, messagetext, closebuttontext):
+        """
+        Prompts the user with a messagebox containing a given message
+        :param messagetext: A string representing the message to be displayed in the window
+        :param closebuttontext: A string that will be displayed on the button used to close the window
+        :return: 
+        """
         message = QtWidgets.QMessageBox()
         message.setMinimumSize(1000, 800)
-        message.setText(messagetext)
-        if not yesbuttontext == None:
-            yesbutton = message.addButton(yesbuttontext, QtWidgets.QMessageBox.YesRole)
-            yesbutton.clicked.connect(self.closeapplication)
-        if not closebuttontext == None:
-            closebutton = message.addButton(closebuttontext, QtWidgets.QMessageBox.YesRole)
-            closebutton.clicked.connect(message.close)
+        message.setText(messagetext)                                        # Creates the message window
+        closebutton = message.addButton(closebuttontext,
+                                        QtWidgets.QMessageBox.YesRole)
+        closebutton.clicked.connect(message.close)                          # Configures the button
         message.exec_()
 
     def _setmessage(self, messagetext):
@@ -422,23 +440,62 @@ class Databasesettings(QtWidgets.QWidget):
     def backToMain(self):
         self.cancelPressed.emit()
 
+    def _messageToUser(self, messagetext, closebuttontext):
+        """
+        Prompts the user with a messagebox containing a given message
+        :param messagetext: A string representing the message to be displayed in the window
+        :param closebuttontext: A string that will be displayed on the button used to close the window
+        :return: 
+        """
+        message = QtWidgets.QMessageBox()
+        message.setMinimumSize(1000, 800)
+        message.setText(messagetext)                                        # Creates the message window
+        closebutton = message.addButton(closebuttontext,
+                                        QtWidgets.QMessageBox.YesRole)
+        closebutton.clicked.connect(message.close)                          # Configures the button
+        message.exec_()
+
     def nextPage(self):
         """
         Handles what happens when the next button is pressed 
         :return: 
         """
+        errorocurred = False
         if self.remote:                                                     # If a remote database should be used
             host = self.databaseform.host.text()
             user = self.databaseform.user.text()
             port = self.databaseform.port.text()
             name = self.databaseform.database.text()
             password = self.databaseform.password.text()
-            newremotevalues = {'host': host, 'user': user, 'port': port, 'name': name, 'password': password}
-            configinterface.set_config('config.cfg',
-                                       self.writesection,
-                                       newremotevalues)                      # Write the database settings to the configfile
 
-        self.okPressed.emit()                                               # Emit the okPressed signal
+            if not host:
+                message = "Du måste ange en host"
+                self._messageToUser(messagetext=message, closebuttontext="Stäng")
+                errorocurred = True
+            elif not user:
+                message = "Du måste ange en användare"
+                self._messageToUser(messagetext=message, closebuttontext="Stäng")
+                errorocurred = True
+            elif not port:
+                message = "Du måste ange en port"
+                self._messageToUser(messagetext=message, closebuttontext="Stäng")
+                errorocurred = True
+            elif not name:
+                message = "Du måste ange en databas"
+                self._messageToUser(messagetext=message, closebuttontext="Stäng")
+                errorocurred = True
+            elif not password:
+                message = "Du måste ange ett lösenord"
+                self._messageToUser(messagetext=message, closebuttontext="Stäng")
+                errorocurred = True
+            else:
+                newremotevalues = {'host': host, 'user': user, 'port': port, 'name': name, 'password': password}
+                configinterface.set_config('config.cfg',
+                                           self.writesection,
+                                           newremotevalues)                     # Write the database settings to the configfile
+
+        if not errorocurred:
+            self.okPressed.emit()                                               # Emit the okPressed signal
 
     def useRemote(self):
         use = self.remote
@@ -447,15 +504,18 @@ class Databasesettings(QtWidgets.QWidget):
 class Databaseform(QtWidgets.QWidget):
 
     def __init__(self, parent=None):
+        """
+        Creates a new instance of a Databaseform page
+        :param parent: 
+        """
         QtWidgets.QWidget.__init__(self, parent)
 
         font = self.createFormFont()
-        previous_remote_database = configinterface.read_config('config.cfg', 'remote')
 
         self.host = QtWidgets.QLineEdit()
-        self.host.setMinimumSize(200, 50)
+        self.host.setMinimumSize(200, 50)                                   # Creates the host input field
         self.host.setFont(font)
-        self.hosttext = previous_remote_database['host']
+        self.hosttext = ""
         self.hostlabel = QtWidgets.QLabel("Host")
         self.hostlabel.setFont(font)
         self.hostlabel.setMinimumSize(50, 50)
@@ -463,7 +523,7 @@ class Databaseform(QtWidgets.QWidget):
         self.port = QtWidgets.QLineEdit()
         self.port.setMinimumSize(200, 50)
         self.port.setFont(font)
-        self.porttext = previous_remote_database['port']
+        self.porttext = ""
         self.portlabel = QtWidgets.QLabel("Port")
         self.portlabel.setFont(font)
         self.portlabel.setMinimumSize(50, 50)
@@ -471,7 +531,7 @@ class Databaseform(QtWidgets.QWidget):
         self.database = QtWidgets.QLineEdit()
         self.database.setMinimumSize(200, 50)
         self.database.setFont(font)
-        self.databasetext = previous_remote_database['name']
+        self.databasetext = ""
         self.databaselabel = QtWidgets.QLabel("Database name")
         self.databaselabel.setFont(font)
         self.databaselabel.setMinimumSize(50, 50)
@@ -479,7 +539,7 @@ class Databaseform(QtWidgets.QWidget):
         self.user = QtWidgets.QLineEdit()
         self.user.setMinimumSize(200, 50)
         self.user.setFont(font)
-        self.usertext = previous_remote_database['user']
+        self.usertext = ""
         self.userlabel = QtWidgets.QLabel("User")
         self.userlabel.setFont(font)
         self.userlabel.setMinimumSize(50, 50)
@@ -487,11 +547,23 @@ class Databaseform(QtWidgets.QWidget):
         self.password = QtWidgets.QLineEdit()
         self.password.setMinimumSize(200, 50)
         self.password.setFont(font)
-        self.passwordtext = previous_remote_database['password']
+        self.passwordtext = ""
         self.password.setEchoMode(self.password.Password)
         self.passwordlabel = QtWidgets.QLabel("Password")
         self.passwordlabel.setFont(font)
         self.passwordlabel.setMinimumSize(50, 50)
+
+        hasprevious = configinterface.has_section('config.cfg', 'remote')
+
+        if hasprevious:
+            previous_remote_database = \
+                configinterface.read_config('config.cfg', 'remote')         # Reads previously used database configs
+            self.hosttext = previous_remote_database['host']
+            self.porttext = previous_remote_database['port']
+            self.usertext = previous_remote_database['user']
+            self.databasetext = previous_remote_database['name']
+            self.passwordtext = previous_remote_database['password']
+
 
         form = QtWidgets.QFormLayout()
         form.addRow(self.hostlabel, self.host)
@@ -563,7 +635,7 @@ class Databaseform(QtWidgets.QWidget):
         return font
 
 
-class currentSession(QtWidgets.QWidget):
+class currentSession(QtWidgets.QWidget):                                    # Not currently used
 
     cancelPressed = QtCore.pyqtSignal()
 
@@ -601,14 +673,18 @@ class currentSession(QtWidgets.QWidget):
 
 class helpPages(QtWidgets.QWidget):
 
-    cancelPressed = QtCore.pyqtSignal()
+    cancelPressed = QtCore.pyqtSignal()                                     # Custom pyqt signal
 
     def __init__(self, parent=None):
+        """
+        Initializes a new instance of a help page
+        :param parent: 
+        """
         QtWidgets.QWidget.__init__(self, parent)
 
 
         buttons = QtWidgets.QDialogButtonBox()
-        cancelbutton = buttons.addButton('Tillbaka', buttons.RejectRole)
+        cancelbutton = buttons.addButton('Tillbaka', buttons.RejectRole)    # Creates the back button
         cancelbutton.setMinimumSize(300, 100)
         cancelbutton.clicked.connect(self.backToMain)
 
@@ -626,10 +702,10 @@ class helpPages(QtWidgets.QWidget):
 
         hbox = QtWidgets.QHBoxLayout()
         hbox.addStretch(1)
-        hbox.addLayout(vbox)
+        hbox.addLayout(vbox)                                                # Creates the page layout
         hbox.addStretch(1)
 
-        self.setLayout(hbox)
+        self.setLayout(hbox)                                                # Sets the page layout
 
     def backToMain(self):
         self.cancelPressed.emit()
@@ -638,7 +714,8 @@ class helpPages(QtWidgets.QWidget):
 class UIpages(QtWidgets.QStackedWidget):
     def __init__(self):
         """
-        Initilizes a new instance of a UIpages object
+        Initilizes a new instance of a UIpages object, i.e. 
+        a stacked widget containing the UI pages of the application
         """
         QtWidgets.QStackedWidget.__init__(self)
 
@@ -679,7 +756,7 @@ class UIpages(QtWidgets.QStackedWidget):
 class Mainmenu(QtWidgets.QWidget):
     warningPressed = QtCore.pyqtSignal()
     quitSignal = QtCore.pyqtSignal()
-    sessionSignal = QtCore.pyqtSignal()
+    sessionSignal = QtCore.pyqtSignal()                                     # The pyqt signals emitted from the main menu page
     helpSignal = QtCore.pyqtSignal()
     currentSignal = QtCore.pyqtSignal()
     visualizeSignal = QtCore.pyqtSignal()
@@ -693,19 +770,8 @@ class Mainmenu(QtWidgets.QWidget):
         self.warningButton = QtWidgets.QPushButton("Varning!")
         self.warningButton.setMinimumSize(300, 80)
         self.warningButton.setIcon(icon)
-        self.warningButton.setStyleSheet("background-color: red;")
-        """
-        self.warningButton.setToolTip("Varning: Anslutningen till "
-                                        "den databas som används i den "
-                                        "pågående mätningen är nere. \n "
-                                        "Mätningen kommer att fortsätta "
-                                        "och anslutningen till databasen "
-                                        "kommer att försöka upprättas. \n"
-                                        "Denna varning kommer att försvinna "
-                                        "när anslutningen är återuprättad")
-        
-        """
-        self.warningButton.hide()
+        self.warningButton.setStyleSheet("background-color: red;")          # Creates the warning button and connects its signal
+        self.warningButton.hide()                                           # Hides the button
         self.warningButton.clicked.connect(self.warningPressed.emit)
 
         self.startButton = QtWidgets.QPushButton("Starta nya mätning")
@@ -796,6 +862,11 @@ class Mainmenu(QtWidgets.QWidget):
         self.startButton.show()                                             # Hides the end current session button and shows the start new session button
 
     def displayWarning(self, display):
+        """
+        Hides or shows the warning button
+        :param display: True, to display the button, false to hide it 
+        :return: 
+        """
         if display:
             self.warningButton.show()
         else:

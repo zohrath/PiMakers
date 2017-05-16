@@ -147,7 +147,7 @@ class Main(QtWidgets.QMainWindow):
                                        sessionid=sessionid,
                                        channellist=channellist,
                                        ongoing=False,
-                                       timeintervall=1)                       # Displays data from the database in a new window
+                                       timeintervall=1)                     # Displays data from the database in a new window, change hard coded timeintervall
         self.datadisplay.show()
         #print("showed datadisplay")
 
@@ -156,216 +156,348 @@ class Main(QtWidgets.QMainWindow):
 
     def checkforabortedsession(self):
         """
-        Checks if the program was terminated before a session was ended and adds 
+        Continues a started session if the program was terminated without ending the session 
         :return: 
         """
-        with open('config.cfg', 'r+') as configfile:                        # Check if the configfile has a latestsession section
+        with open('config.cfg', 'r') as configfile:                        # Check if the configfile has a latestsession section
             parser = configparser.ConfigParser()
             parser.read_file(configfile)
             hassection = parser.has_section('latestsession')
+
         if hassection:                                                      # If the configfile has the section
-            hasremote = parser.has_option('latestsession', 'remotedatabase')
-            channels = configinterface.read_config('config.cfg', 'channels')
+            hasremote = parser.has_option('latestsession', 'remotedatabase')# Check for remote option
+            channels = configinterface.read_config('config.cfg', 'channels')# Fetch channels
+
             channellist = {}
             for index in channels:
-                channellist[index] = ast.literal_eval(channels[index])
+                channellist[index] = ast.literal_eval(channels[index])      # Formats the channellist
+
             sessionsettings = configinterface.read_config('config.cfg', 'latestsession')
             start = sessionsettings['start']
-            end = sessionsettings['end']                                    # Read the section
+            end = sessionsettings['end']
             self.localdb = ast.literal_eval(sessionsettings['localdatabase'])
             self.localsessionid = int(sessionsettings['localsessionid'])
             timeintervall = float(sessionsettings['timeintervall'])
-            if end == '':
-                startvalue = datetime.datetime.strptime(start, "%Y-%m-%d %H:%M:%S")
-                addthread = Addthread(localdb=self.localdb, sessionid=self.localsessionid, channellist=channellist, shouldend=self.shouldend, timeintervall=timeintervall)
-                addthread.start()
-                if hasremote:
+
+            if not end:                                                     # If the session was not ended
+                addthread = Addthread(localdb=self.localdb,
+                                      sessionid=self.localsessionid,
+                                      channellist=channellist,
+                                      shouldend=self.shouldend,
+                                      timeintervall=timeintervall)
+                addthread.start()                                           # Start a thread for adding values to local database
+
+                if hasremote:                                               # If a remote database is used in the session
                     self.usingremote = True
                     self.remotedb = ast.literal_eval(sessionsettings['remotedatabase'])
                     self.remotesessionid = int(sessionsettings['remotesessionid'])
-                    remoteaddhtread = Addremotethread(remotedb=self.remotedb, remotesessionid=self.remotesessionid, localdb=self.localdb, sessionid=self.localsessionid, shouldend=self.shouldendremote, programquit=self.programquit, timeintervall=timeintervall)
+                    remoteaddhtread = Addremotethread(remotedb=self.remotedb,
+                                                      remotesessionid=self.remotesessionid,
+                                                      localdb=self.localdb,
+                                                      sessionid=self.localsessionid,
+                                                      shouldend=self.shouldendremote,
+                                                      programquit=self.programquit,
+                                                      timeintervall=timeintervall)
                     remoteaddhtread.noConnection.connect(self.warnuser)
                     remoteaddhtread.connectionEstablished.connect(self.stopwarninguser)
-                    remoteaddhtread.start()
+                    remoteaddhtread.start()                                 # Start a thread for adding values to the remote database
                 else:
                     self.usingremote = False
-                self.sessionrunning = True
-                self.widgetlist.mainmenu.sessionstarted()
-                self.datadisplay = Datadisplay(dbvalues=self.localdb, sessionid=self.localsessionid,
-                                               channellist=channellist, ongoing=True, timeintervall=timeintervall)
-                self.datadisplay.show()
+
+                self.sessionrunning = True                                  # Used by other functions to check if a session is running
+                self.widgetlist.mainmenu.sessionstarted()                   # Change appearance of the mainmeny
+                self.datadisplay = Datadisplay(dbvalues=self.localdb,
+                                               sessionid=self.localsessionid,
+                                               channellist=channellist,
+                                               ongoing=True,
+                                               timeintervall=timeintervall)
+                self.datadisplay.show()                                     # Open new window displaying data
 
 
     def warnuser(self):
+        """
+        Displays a warning on the main menu page
+        :return: 
+        """
         self.widgetlist.mainmenu.displayWarning(True)
-        #self.explainWarning()
 
     def stopwarninguser(self):
+        """
+        Removes a warning from the main menu page
+        :return: 
+        """
         self.widgetlist.mainmenu.displayWarning(False)
 
     def showsessionlist(self):
+        """
+        Display the sessionlist page
+        :return: 
+        """
         sessionlist = self.getsessions()
         self.widgetlist.widget(self.widgetlist.visualizesessionsettingsindex).updateSessionList(sessionlist)
         self.widgetlist.setCurrentIndex(self.widgetlist.visualizesessionsettingsindex)
 
     def showvisualizesettings(self):
+        """
+        Display the database settings page for the visualize option
+        :return: 
+        """
         self.widgetlist.setCurrentIndex(self.widgetlist.visualizedatabasesettingsindex)
 
     def showdatabasesettings(self):
+        """
+        Display the database settings page for the start session option 
+        :return: 
+        """
         self.widgetlist.setCurrentIndex(self.widgetlist.databasesettingsindex)
 
     def showhelppage(self):
         """
-        url = QtCore.QUrl("UsefulnessHarpers.pdf")
-        pdfhandler = QtGui.QDesktopServices()
-        pdfhandler.openUrl(url)
+        Display the help page
+        :return: 
         """
         self.widgetlist.setCurrentIndex(self.widgetlist.helppageindex)
 
     def showmainmenu(self):
+        """
+        Display the main menu
+        :return: 
+        """
         self.widgetlist.setCurrentIndex(self.widgetlist.mainmenuindex)
 
     def showchannelsettings(self):
+        """
+        Display the channel settings page
+        :return: 
+        """
         self.widgetlist.setCurrentIndex(self.widgetlist.channelsettingsindex)
 
     def quit(self):
-        if self.sessionrunning:
-            self.messageToUser(messagetext="Mätning pågår, avsluta mätning och stäng programmet?", yesbuttontext="Ja", closebuttontext="Nej")
+        """
+        Checkpoint function before terminating the program 
+        :return: 
+        """
+        if self.sessionrunning:                                             # If a session is running
+            self.messageToUser(messagetext="Mätning pågår, "
+                                           "avsluta mätning och "
+                                           "stäng programmet?"
+                               , yesbuttontext="Ja",
+                               closebuttontext="Nej")                       # Prompt user
         else:
-            self.closeapplication()
+            self.closeapplication()                                         # Else, terminate
 
     def closeapplication(self):
-        if self.sessionrunning:
-            self.endcurrentsession()
-        self.programquit.set()
-        self.close()
+        """
+        Terminates the program
+        :return: 
+        """
+        if self.sessionrunning:                                             # If a session is running
+            self.endcurrentsession()                                        # End the session
+        self.close()                                                        # Close
 
     def endcurrentsession(self):
-        self.programquit.set()
-        self.shouldend.set()
+        """
+        Ends a running session
+        :return: 
+        """
+        self.programquit.set()                                              # Signal remote add thread to stop
+        self.shouldend.set()                                                # Signal local add thread
+
         endtimestamp = datetime.datetime.now()
-        endtimestamp = endtimestamp.strftime("%Y-%m-%d %H:%M:%S")
-        configinterface.set_config('config.cfg', 'latestsession', {'end': endtimestamp})
+        endtimestamp = endtimestamp.strftime("%Y-%m-%d %H:%M:%S")           # Get timestamp
+        configinterface.set_config('config.cfg',
+                                   'latestsession',
+                                   {'end': endtimestamp})                   # Write the timestamp to configfile
 
-        self.widgetlist.mainmenu.sessionended()
-        Database.end_current_session(self.localdb, self.localsessionid)
-        if self.usingremote:
+        self.widgetlist.mainmenu.sessionended()                             # Change main menu appearance
+        Database.end_current_session(self.localdb, self.localsessionid)     # Give the local session an end time
+        if self.usingremote:                                                # If using remote
             self.shouldendremote.set()
-            Database.end_current_session(self.remotedb, self.remotesessionid)
+            Database.end_current_session(self.remotedb,
+                                         self.remotesessionid)              # Give the remote session an end time
 
-        self.datadisplay.close()
+        self.datadisplay.close()                                            # Close the datadisplay window
         self.sessionrunning = False
-        self.showmainmenu()
+        self.showmainmenu()                                                 # Display main menu
 
     def getsessions(self):
-        useremote = self.widgetlist.widget(self.widgetlist.visualizedatabasesettingsindex).useRemote()
-        if useremote:
-            remotedb = configinterface.read_config('config.cfg', 'remotevisual')
-            sessionlist = Database.get_session_list(remotedb)
+        """
+        Retrieves a list of sessions from a database specified 
+        on the database settings page for the visualize option
+        :return: A tuple of tuples containing information about sessions
+        Example: ((1, 'session1'), (2, 'session2'))
+        """
+        useremote = \
+            self.widgetlist.\
+                widget(self.widgetlist.visualizedatabasesettingsindex).\
+                useRemote()                                                 # Fetch database type
+        if useremote:                                                       # If remote
+            remotedb = configinterface.read_config('config.cfg',
+                                                   'remotevisual')
+            sessionlist = Database.get_session_list(remotedb)               # Get session from remote database
         else:
             localdb = configinterface.read_config('config.cfg', 'default')
-            sessionlist = Database.get_session_list(localdb)
+            sessionlist = Database.get_session_list(localdb)                # Else, get sessions from local database
         return sessionlist
 
 
 
     def startsession(self):
+        """
+        Starts a new session
+        :return: 
+        """
         try:
-            self.usingremote = self.widgetlist.widget(self.widgetlist.databasesettingsindex).useRemote()
-            self.localdb = configinterface.read_config('config.cfg', 'default')
-            sessionname = self.widgetlist.widget(self.widgetlist.channelsettingsindex).sessionname
-            channellist = self.widgetlist.widget(self.widgetlist.channelsettingsindex).channellist
-            timeintervall = self.widgetlist.widget(self.widgetlist.channelsettingsindex).sessionintervall
+            self.usingremote = \
+                self.widgetlist.\
+                    widget(self.widgetlist.databasesettingsindex).\
+                    useRemote()                                             # Checks if a remote database should be used
+            self.localdb = \
+                configinterface.read_config('config.cfg', 'default')        # Gets configuration for the local database
+            sessionname = \
+                self.widgetlist.\
+                    widget(self.widgetlist.channelsettingsindex).\
+                    sessionname                                             # Gets the sessionname
+            channellist = \
+                self.widgetlist.\
+                    widget(self.widgetlist.channelsettingsindex).\
+                    channellist                                             # Gets a list of channels to use in the session
+            timeintervall = \
+                self.widgetlist.\
+                    widget(self.widgetlist.channelsettingsindex).\
+                    sessionintervall                                        # Gets the time intervall for the session
 
-            for index in channellist:
-                channellist[index] = ast.literal_eval(channellist[index])
 
-            self.localsessionid = Database.start_new_session(dbvalues=self.localdb, name=sessionname, channels=channellist)
-            print("Started local session")
-            addthread = Addthread(localdb=self.localdb, sessionid=self.localsessionid, shouldend=self.shouldend, channellist=channellist, timeintervall=timeintervall)
-
-            if self.usingremote:
-                self.remotedb = configinterface.read_config('config.cfg', 'remote')
+            if self.usingremote:                                            # If a remote should be used
+                self.remotedb = \
+                    configinterface.read_config('config.cfg', 'remote')     # Get remote database configurations
                 remotechannels = self.convertToRemoteChannels(channellist)
-                self.remotesessionid = Database.remote_start_new_session(dbvalues=self.remotedb, name=sessionname,
-                                                                        channels=remotechannels, piid=self.piid)
-                print("Started remote session")
+                self.remotesessionid = \
+                    Database.remote_start_new_session(dbvalues=self.remotedb,
+                                                      name=sessionname,
+                                                      channels=remotechannels,
+                                                      piid=self.piid)       # Make a new session entry to the remote database
 
-
-
-                remoteaddthread = Addremotethread(remotedb=self.remotedb, localdb=self.localdb,
-                                                remotesessionid=self.remotesessionid, sessionid=self.localsessionid, shouldend=self.shouldendremote, programquit=self.programquit, timeintervall=timeintervall)
-            addthread.start()
+            self.localsessionid = \
+                Database.start_new_session(dbvalues=self.localdb,
+                                           name=sessionname,
+                                           channels=channellist)            # Make a new session entry to the local database
 
 
             now = datetime.datetime.now()
             startsearchvalue = now.strftime('%Y-%m-%d %H:%M:%S')
-            startfractions = str(now.microsecond)
-            writeitem = {'start': startsearchvalue, 'startfractions': startfractions, 'localdatabase': str(self.localdb), 'localsessionid': str(self.localsessionid), 'timeintervall': str(timeintervall), 'end': ''}
-            if self.usingremote:
-                writeitem['remotedatabase'] = str(self.remotedb)
-                writeitem['remotesessionid'] = str(self.remotesessionid)
-            parser = configparser.ConfigParser()
-            with open('config.cfg', 'r+') as r:
-                parser.read_file(r)
-                parser.remove_section('latestsession')
-            with open('config.cfg', 'w+') as w:
-                parser.write(w)
-            configinterface.set_config('config.cfg', 'latestsession', writeitem)
+            startfractions = str(now.microsecond)                           # Get timestamp for session start
+            writeitem = {'start': startsearchvalue, 'startfractions': startfractions,
+                         'localdatabase': str(self.localdb), 'localsessionid': str(self.localsessionid),
+                         'timeintervall': str(timeintervall), 'end': ''}    # Add session information to configfile
 
-            if self.usingremote:
+            if self.usingremote:                                            # If a remote is used
+                writeitem['remotedatabase'] = str(self.remotedb)
+                writeitem['remotesessionid'] = str(self.remotesessionid)    # Add information about the remote session
+
+            parser = configparser.ConfigParser()
+            with open('config.cfg', 'r') as r:
+                parser.read_file(r)
+                parser.remove_section('latestsession')                      # Remove previous information from the configfile
+            with open('config.cfg', 'w') as w:
+                parser.write(w)
+            configinterface.set_config('config.cfg',
+                                       'latestsession',
+                                       writeitem)                           # Write the new information to the configfile
+
+            addthread = Addthread(localdb=self.localdb,
+                                  sessionid=self.localsessionid,
+                                  shouldend=self.shouldend,
+                                  channellist=channellist,
+                                  timeintervall=timeintervall)
+            addthread.start()                                               # Create a thread for adding to the local database and start it
+
+            if self.usingremote:                                            # If a remote database is used
+                remoteaddthread = Addremotethread(remotedb=self.remotedb,
+                                                  localdb=self.localdb,
+                                                  remotesessionid=self.remotesessionid,
+                                                  sessionid=self.localsessionid,
+                                                  shouldend=self.shouldendremote,
+                                                  programquit=self.programquit,
+                                                  timeintervall=timeintervall)
                 remoteaddthread.connectionEstablished.connect(self.stopwarninguser)
                 remoteaddthread.noConnection.connect(self.warnuser)
-                remoteaddthread.start()
+                remoteaddthread.start()                                     # Create a thread for adding to the remote database and start it
 
-            self.datadisplay = Datadisplay(dbvalues=self.localdb, sessionid=self.localsessionid, channellist=channellist, ongoing=True, timeintervall=timeintervall)
-            self.datadisplay.show()
-            self.widgetlist.mainmenu.sessionstarted()
-            self.widgetlist.setCurrentIndex(self.widgetlist.mainmenuindex)
+            self.datadisplay = Datadisplay(dbvalues=self.localdb,
+                                           sessionid=self.localsessionid,
+                                           channellist=channellist,
+                                           ongoing=True,
+                                           timeintervall=timeintervall)     # Create a new window for displaying data
+            self.datadisplay.show()                                         # Show the window
+            self.widgetlist.mainmenu.sessionstarted()                       # Change appearance of mainmenu
+            self.showmainmenu()                                             # Display the mainmeny
             self.sessionrunning = True
+
         except pymysql.err.Error as E:
-            if E.args[0] == 1045:
+            if E.args[0] == 1045:                                           # If mysql connection denied
                 message = "Anslutning nekad, se över port, användare och lösenord"
-                self.messageToUser(messagetext=message, closebuttontext="Stäng", yesbuttontext=None)
-            if E.args[0] == 2003:
+                self.messageToUser(messagetext=message,
+                                   closebuttontext="Stäng")
+            if E.args[0] == 2003:                                           # If mysql connection cant be found
                 message = "Kunde inte anluta till host: '%s'" % (self.remotedb['host'])
-                self.messageToUser(messagetext=message, closebuttontext="Stäng", yesbuttontext=None)
-            if E.args[0] == 1049:
+                self.messageToUser(messagetext=message,
+                                   closebuttontext="Stäng")
+            if E.args[0] == 1049:                                           # If the database wasnt found
                 message = "Hittade ingen database med namnet '%s'" % (self.remotedb['name'])
-                self.messageToUser(messagetext=message, closebuttontext="Stäng", yesbuttontext=None)
-            if E.args[0] == 1062:
+                self.messageToUser(messagetext=message,
+                                   closebuttontext="Stäng")
+            if E.args[0] == 1062:                                           # If mysql integrity error
                 message = "Minst två kanaler har samma namn. Kanalnamn måste vara unika"
-                self.messageToUser(messagetext=message, closebuttontext="Stäng", yesbuttontext=None)
-        except ValueError as V:
+                self.messageToUser(messagetext=message,
+                                   closebuttontext="Stäng")
+        except ValueError as V:                                             # If wrong value in port field
+            print(V)
             wrongporttype = "Fel typ för 'Port', ett heltal förväntas"
-            self.messageToUser(messagetext=wrongporttype, closebuttontext="Stäng", yesbuttontext=None)
-
-
-
+            self.messageToUser(messagetext=wrongporttype,
+                               closebuttontext="Stäng")
 
     def messageToUser(self, messagetext, yesbuttontext, closebuttontext):
+        """
+        Creteas a window displaying a specified message to the user
+        :param messagetext: A string representing the message to display 
+        :param closebuttontext: A string representing the text to be shown on the close button
+        :return: 
+        """
         message = QtWidgets.QMessageBox()
         message.setMinimumSize(1000, 800)
         message.setText(messagetext)
-        if not yesbuttontext == None:
-            yesbutton = message.addButton(yesbuttontext, QtWidgets.QMessageBox.YesRole)
-            yesbutton.clicked.connect(self.closeapplication)
-        if not closebuttontext == None:
-            closebutton = message.addButton(closebuttontext, QtWidgets.QMessageBox.YesRole)
-            closebutton.clicked.connect(message.close)
+        if yesbutton:
+            yesbutton
+        closebutton = message.addButton(closebuttontext, QtWidgets.QMessageBox.YesRole)
+        closebutton.clicked.connect(message.close)
         message.exec_()
 
     def convertToRemoteChannels(self, channellist):
+        """
+        Converts a list of local channels to a corresponding list of remote channels 
+        :param channellist: the list of channels
+        :return: The same tuple given as an argument, but with new keys
+        """
         newlist = {}
         for index in channellist:
             newindex = int(index)
             newindex = newindex + 60*(self.piid-1)
-            newlist[str(newindex)] = channellist[index]
+            newlist[str(newindex)] = channellist[index]                     # Todo: Check if this can be done without hard coding
         return newlist
 
 class Addthread(threading.Thread):
-
     def __init__(self, localdb, sessionid, channellist, shouldend, timeintervall):
+        """
+        Creates a new thread for adding values to the local database
+        :param localdb: A tuple of database configurations for the local database
+        Example: {'user': 'root', 'host': '127.0.0.1', 'password': '1234', 'name': 'databasename', 'port': '3306'}
+        :param sessionid: An int representing the id of the running session 
+        :param channellist: A tuple of channels and channel values
+        Example: {1: [101, 'Celsius', 0.9, 'Temperature'], 2: [102, 'Kilograms', 1.3, 'Weigth']}
+        :param shouldend: A threading.Event object for stopping the thread
+        :param timeintervall: An int representing the amount of second between each addition to the database
+        """
         self.localdb = localdb
         self.sessionid = sessionid
         self.shouldend = shouldend
@@ -374,23 +506,41 @@ class Addthread(threading.Thread):
         threading.Thread.__init__(self)
 
     def run(self):
-
-        while not self.shouldend.wait(self.timeintervall):                             #change hard coded wait
+        """
+        Does all work in the thread
+        :return: 
+        """
+        while not self.shouldend.wait(self.timeintervall):                  # While the thread has not been told to stop
+                                                                            # wait for timeintervall amount of seconds
             list = {}
             for item in self.channellist:
                 id = int(item)
                 #list[id] = id+0.23
-                list[id] = random.randint(1, 100)
+                list[id] = random.randint(1, 100)                           # Generate random integers
             print(list)
-            Database.add_to_database(self.localdb, list, self.sessionid)
-        self.shouldend.clear()
+            Database.add_to_database(self.localdb, list, self.sessionid)    # Add values to the local database
+
+        self.shouldend.clear()                                              # Before exiting thread, clear Event object
 
 
 class Addremotethread(QtCore.QThread):
     noConnection = QtCore.pyqtSignal()
-    connectionEstablished = QtCore.pyqtSignal()
+    connectionEstablished = QtCore.pyqtSignal()                             # Custom pyqt signals used to signal the main thread
 
     def __init__(self, localdb, remotedb, remotesessionid, sessionid, shouldend, programquit, timeintervall, parent=None):
+        """
+        Creates a new thread for adding values to a remote database
+        :param localdb: A tuple of database configurations for the local database to fetch values from 
+        Example: {'user': 'root', 'host': '127.0.0.1', 'password': '1234', 'name': 'databasename', 'port': '3306'}
+        :param remotedb: A tuple of database configurations for the remote database to add values to
+        Example: {'user': 'root', 'host': '127.0.0.1', 'password': '1234', 'name': 'databasename', 'port': '3306'}
+        :param remotesessionid: An int representing the remote session id associated with the values to be added
+        :param sessionid: An int representing the local session id associated with the values to be fetched
+        :param shouldend: A threading.Event object used to stop the thread
+        :param programquit: A threading.Event object used to make the thread add values immediately
+        :param timeintervall: An int representing the amount of seconds between each addition
+        :param parent: 
+        """
         self.remotedb = remotedb
         self.remotesessionid = remotesessionid
         self.sessionid = sessionid
@@ -405,65 +555,68 @@ class Addremotethread(QtCore.QThread):
         QtCore.QThread.__init__(self, parent)
 
     def run(self):
-
+        """
+        Fetches values from a local database and adds them to a remote database
+        :return: 
+        """
         pid = configinterface.read_config('config.cfg', 'piid')
-        piid = int(pid['id'])
+        piid = int(pid['id'])                                               # Gets the id of the Raspberry pi running the program
         while not self.addedalldata:
             try:
-                if self.programquit.wait(0):
-                    self.timeintervall = 0
-                if not self.shouldend.wait(self.timeintervall*10):
+                if self.programquit.wait(0):                                # If signaled that the program wants to terminate
+                    self.timeintervall = 0                                  # Do additions immediately
+                if not self.shouldend.wait(self.timeintervall*10):          # Wait for timeintervall seconds
                     sessionsettings = configinterface.read_config('config.cfg', 'latestsession')
                     start = sessionsettings['start']
-                    end = sessionsettings['end']
-                    if not end == '':
+                    end = sessionsettings['end']                            # Get previous previous search parameters
+                    if not end == '':                                       # If the session has been ended
                         checkend = datetime.datetime.strptime(end, '%Y-%m-%d %H:%M:%S')
                         checkstart = datetime.datetime.strptime(start, '%Y-%m-%d %H:%M:%S')
-                        if checkend > checkstart:
+                        if checkend > checkstart:                           # Check if the last search parameter is greater than the end value fo the session
                             self.addedalldata = True
 
 
-                    end = datetime.datetime.now()
-                    valuelist = Database.get_measurements(dbvalues=self.localdb, sessionid=self.sessionid,
-                                                          channelid=None, starttime=start, endtime=end)
-
-                    print("QUERY RESULT")
-                    print(valuelist)
-
+                    end = datetime.datetime.now()                           # Get new end value to use in local database search
+                    valuelist = Database.get_measurements(dbvalues=self.localdb,
+                                                          sessionid=self.sessionid,
+                                                          channelid=None,
+                                                          starttime=start,
+                                                          endtime=end)      # Get measurements from the local database
                     templatestaddtime = None
                     templatestaddfractions = None
                     new = []
-                    for row in valuelist:
+                    for row in valuelist:                                   # For each row in the result
                         timestamp = row[2].strftime('%Y-%m-%d %H:%M:%S')
                         timestampfractions = row[3]
                         templatestaddtime = row[2].strftime('%Y-%m-%d %H:%M:%S')
                         templatestaddfractions = row[3]
-                        data = row[4]
-                        remotechannel = row[1]+60*(piid-1)
+                        data = row[4]                                       # Add measurementvalues to a new list
+                        remotechannel = row[1]+60*(piid-1)                  # Convert local id to remoteid
                         if not(timestamp == self.latestaddtime and timestampfractions == self.latestaddfractions):
-                            new.append((self.remotesessionid, remotechannel, timestamp, timestampfractions, data))
-
-
-                    print("MODIFIED RESULT")
-                    print(new)
+                            new.append((self.remotesessionid,
+                                        remotechannel,
+                                        timestamp,
+                                        timestampfractions,
+                                        data))                              # If the timestamp in this result matches the last timestamp in the previous result
+                                                                            # dont add it to the new list
                     if not new == []:
-                        Database.remote_add_to_database(self.remotedb, new)
+                        Database.remote_add_to_database(self.remotedb, new) # If the list is not empty, add values to the remote database
 
                     self.latestaddtime = templatestaddtime
-                    self.latestaddfractions = templatestaddfractions
+                    self.latestaddfractions = templatestaddfractions        # Set latest add timestamp
 
-                    if self.databaseisdown:
-                        self.connectionEstablished.emit()
+                    if self.databaseisdown:                                 # If the database was down, the database is now up since the addition was succesful
+                        self.connectionEstablished.emit()                   # Signals main thread that the database is connected
                         self.databaseisdown = False
 
-                    newstart = end.strftime('%Y-%m-%d %H:%M:%S')
-                    #datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                    newstart = end.strftime('%Y-%m-%d %H:%M:%S')            # Write the end time used in the search to the configfile
+                                                                            # To be used as start time in the next search
                     configinterface.set_config('config.cfg', 'latestsession', {'start': newstart})
                 else:
                     self.shouldend.clear()
-            except pymysql.err.Error as E:
+            except pymysql.err.Error as E:                                  # If the database raises an exception
                 if not self.databaseisdown:
-                    self.noConnection.emit()
+                    self.noConnection.emit()                                # Signal the main thread that the database is down
                     self.databaseisdown = True
                 print(E)
         self.programquit.clear()
