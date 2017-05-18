@@ -385,15 +385,15 @@ class Main(QtWidgets.QMainWindow):
                     configInterface.read_config('config.cfg', 'remote')     # Get remote database configurations
                 remoteChannels = self.convertToRemoteChannels(channelList)
                 self.remoteSessionId = \
-                    Database.remote_start_new_session(dbvalues=self.remoteDatabase,
-                                                      name=sessionname,
-                                                      channels=remoteChannels,
-                                                      piid=self.piid)       # Make a new session entry to the remote database
+                    Database.remoteStartNewSession(databaseValues=self.remoteDatabase,
+                                                   name=sessionname,
+                                                   channels=remoteChannels,
+                                                   piid=self.piid)       # Make a new session entry to the remote database
 
             self.localSessionId = \
-                Database.start_new_session(dbvalues=self.localDatabase,
-                                           name=sessionname,
-                                           channels=channelList)            # Make a new session entry to the local database
+                Database.startNewSession(databaseValues=self.localDatabase,
+                                         name=sessionname,
+                                         channels=channelList)            # Make a new session entry to the local database
 
 
             currentTime = datetime.datetime.now()
@@ -587,11 +587,11 @@ class AddRemoteThread(QtCore.QThread):
 
 
                     end = datetime.datetime.now()                           # Get new end value to use in local database search
-                    valueList = Database.getMeasurements(dbvalues=self.localDatabase,
-                                                         sessionid=self.sessionId,
-                                                         channelid=None,
-                                                         starttime=start,
-                                                         endtime=end)      # Get measurements from the local database
+                    valueList = Database.getMeasurements(databaseValues=self.localDatabase,
+                                                         sessionId=self.sessionId,
+                                                         channelId=None,
+                                                         startTime=start,
+                                                         endTime=end)      # Get measurements from the local database
                     templatestAddTime = None
                     templatestAddFractions = None
                     new = []
@@ -743,11 +743,11 @@ class Currentsessionplot(FC):
         rawStart = rawNow - datetime.timedelta(seconds=100)
         now = rawNow.strftime('%Y-%m-%d %H:%M:%S')
         start = rawStart.strftime('%Y-%m-%d %H:%M:%S')
-        values = Database.getMeasurements(dbvalues=self.databaseValues,
-                                          sessionid=self.sessionId,
-                                          channelid=self.plotChannel,
-                                          starttime=start,
-                                          endtime=now)
+        values = Database.getMeasurements(databaseValues=self.databaseValues,
+                                          sessionId=self.sessionId,
+                                          channelId=self.plotChannel,
+                                          startTime=start,
+                                          endTime=now)
         xAxisValues = []
         yAxisValues = []
         for index in values:
@@ -768,11 +768,11 @@ class Currentsessionplot(FC):
         self.timer.start(1000 * self.timeInterval)
 
     def drawFigure(self):
-        values = Database.getMeasurements(dbvalues=self.databaseValues,
-                                          sessionid=self.sessionId,
-                                          channelid=self.plotChannel,
-                                          starttime=None,
-                                          endtime=None)
+        values = Database.getMeasurements(databaseValues=self.databaseValues,
+                                          sessionId=self.sessionId,
+                                          channelId=self.plotChannel,
+                                          startTime=None,
+                                          endTime=None)
 
         xAxisValues = []
         yAxisValues = []
@@ -804,7 +804,7 @@ if __name__ == '__main__':
     if not hasid:
         #id = str(Database.remoteAddNewPi(remote, 'placeholdername'))
         configInterface.set_config('config.cfg', 'piid', {'id': id})
-    Database.create_local_database(local)
+    Database.createLocalDatabase(local)
     app = QtWidgets.QApplication(sys.argv)
     window = Main()
     window.showFullScreen()
