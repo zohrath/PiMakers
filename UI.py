@@ -2,7 +2,7 @@ from PyQt5 import QtWidgets
 from PyQt5 import QtCore
 from PyQt5 import QtGui
 from PyQt5 import QtSql
-import configinterface
+import configInterface
 import sys
 import configparser
 
@@ -280,7 +280,7 @@ class Channelsettings(QtWidgets.QWidget):
                 parser.remove_section('channels')                           # Removes the previous channels
             with open('config.cfg', 'w+') as w:
                 parser.write(w)                                             # Writes the removal to the file
-            configinterface.set_config('config.cfg',
+            configInterface.set_config('config.cfg',
                                        'channels',
                                        channellistforwrite)                 # Writes the new channels to the configfile
 
@@ -518,7 +518,7 @@ class Databasesettings(QtWidgets.QWidget):
                 errorocurred = True
             else:
                 newremotevalues = {'host': host, 'user': user, 'port': port, 'name': name, 'password': password}
-                configinterface.set_config('config.cfg',
+                configInterface.set_config('config.cfg',
                                            self.writesection,
                                            newremotevalues)                     # Write the database settings to the configfile
 
@@ -581,11 +581,11 @@ class Databaseform(QtWidgets.QWidget):
         self.passwordlabel.setFont(font)
         self.passwordlabel.setMinimumSize(50, 50)
 
-        hasprevious = configinterface.has_section('config.cfg', 'remote')
+        hasprevious = configInterface.has_section('config.cfg', 'remote')
 
         if hasprevious:
             previous_remote_database = \
-                configinterface.read_config('config.cfg', 'remote')         # Reads previously used database configs
+                configInterface.read_config('config.cfg', 'remote')         # Reads previously used database configs
             self.hosttext = previous_remote_database['host']
             self.porttext = previous_remote_database['port']
             self.usertext = previous_remote_database['user']
@@ -747,8 +747,8 @@ class UIpages(QtWidgets.QStackedWidget):
         """
         QtWidgets.QStackedWidget.__init__(self)
 
-        self.mainmenu = Mainmenu()
-        self.mainmenuindex = self.addWidget(self.mainmenu)                  # Creates a main menu page and stores its index
+        self.mainMenu = Mainmenu()
+        self.mainMenuIndex = self.addWidget(self.mainMenu)                  # Creates a main menu page and stores its index
 
         self.databasesettings = Databasesettings(firsttoggle="Ja",
                                                        secondtoggle="Nej",
@@ -756,27 +756,27 @@ class UIpages(QtWidgets.QStackedWidget):
                                                        message="Mätvärden kommer att "
                                                                "sparas lokalt, vill du även "
                                                                "spara till en annan databas?")
-        self.databasesettingsindex = self.addWidget(self.databasesettings)  # Creates a databasesettings page and stores its index
+        self.databaseSettingsIndex = self.addWidget(self.databasesettings)  # Creates a databasesettings page and stores its index
 
         self.helppage = helpPages()
-        self.helppageindex = self.addWidget(self.helppage)                  # Creates a help page and stores its index
+        self.helpPageIndex = self.addWidget(self.helppage)                  # Creates a help page and stores its index
 
         self.channelsettings = Channelsettings()
-        self.channelsettingsindex = self.addWidget(self.channelsettings)    # Creates a Channelsettings page and stores its index
+        self.channelSettingsIndex = self.addWidget(self.channelsettings)    # Creates a Channelsettings page and stores its index
 
         self.current = currentSession()
-        self.currentsessionindex = self.addWidget(self.current)             # Creates a currentsession page and stores its index
+        self.currentSessionIndex = self.addWidget(self.current)             # Creates a currentsession page and stores its index
 
         self.visualizedatabasesettings = Databasesettings(firsttoggle="Annan",
                                                                 secondtoggle="Lokal",
                                                                 writesection="remotevisual",
                                                                 message="Hämta lokala mätvärden, "
                                                                         "eller hämta från en databas?")
-        self.visualizedatabasesettingsindex = \
+        self.visualizeDatabaseSettingsIndex = \
             self.addWidget(self.visualizedatabasesettings)                  # Creates a Databasesettings page and stores its index
 
         self.visualizesessionsettings = Visualizationsettings()
-        self.visualizesessionsettingsindex = \
+        self.visualizeSessionSettingsIndex = \
             self.addWidget(self.visualizesessionsettings)                   # Creates a Visualizationsettings page and stores its idnex
 
 
@@ -873,7 +873,7 @@ class Mainmenu(QtWidgets.QWidget):
         """
         self.helpSignal.emit()                                              # Emits the helpSignal signal
 
-    def sessionstarted(self):
+    def sessionStarted(self):
         """
         Sets the appearance of the main menu when a session is started
         :return: 
@@ -881,7 +881,7 @@ class Mainmenu(QtWidgets.QWidget):
         self.startButton.hide()
         self.currentButton.show()                                           # Hides the start new session button and show the end current session button
 
-    def sessionended(self):
+    def sessionEnded(self):
         """
         Sets the appearance of the main menu when no session is running
         :return: 

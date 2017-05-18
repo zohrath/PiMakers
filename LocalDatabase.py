@@ -5,7 +5,7 @@ This module acts as an interface to the local database
 import pymysql
 import time
 import datetime
-import configinterface
+import configInterface
 
 
 

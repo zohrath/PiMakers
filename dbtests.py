@@ -1,6 +1,6 @@
 import unittest
 import time
-from configinterface import read_config
+from configInterface import read_config
 from LocalDatabase import create_database
 from LocalDatabase import drop_database
 from LocalDatabase import read_from_database

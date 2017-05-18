@@ -1,7 +1,7 @@
 import sys
 import threading
 import pymysql
-import configinterface
+import configInterface
 import configparser
 import Database
 import datetime
@@ -27,12 +27,12 @@ class Main(QtWidgets.QMainWindow):
         Creates the main window of the application
         """
         self.sessionrunning = False
-        piid = configinterface.read_config('config.cfg', 'piid')
+        piid = configInterface.read_config('config.cfg', 'piid')
         self.piid = int(piid['id'])
 
         QtWidgets.QMainWindow.__init__(self)
         self.widgetlist = UI.UIpages()                                      # Creates a stacked widget containing the UI pages of the application
-        self.widgetlist.setCurrentIndex(self.widgetlist.mainmenuindex)
+        self.widgetlist.setCurrentIndex(self.widgetlist.mainMenuIndex)
         self.setCentralWidget(self.widgetlist)                              # Displays the mainmenu
 
         self.shouldend = threading.Event()
@@ -49,46 +49,46 @@ class Main(QtWidgets.QMainWindow):
         This controls how the application responds to user interaction
         :return: 
         """
-        self.widgetlist.widget(self.widgetlist.mainmenuindex)\
+        self.widgetlist.widget(self.widgetlist.mainMenuIndex)\
             .quitSignal.connect(self.quit)
-        self.widgetlist.widget(self.widgetlist.mainmenuindex)\
+        self.widgetlist.widget(self.widgetlist.mainMenuIndex)\
             .sessionSignal.connect(self.showchannelsettings)
-        self.widgetlist.widget(self.widgetlist.mainmenuindex)\
+        self.widgetlist.widget(self.widgetlist.mainMenuIndex)\
             .helpSignal.connect(self.showhelppage)
-        self.widgetlist.widget(self.widgetlist.mainmenuindex)\
+        self.widgetlist.widget(self.widgetlist.mainMenuIndex)\
             .currentSignal.connect(self.endcurrentsession)
-        self.widgetlist.widget(self.widgetlist.mainmenuindex)\
+        self.widgetlist.widget(self.widgetlist.mainMenuIndex)\
             .visualizeSignal.connect(self.showvisualizesettings)            # Connects the signals emitted by the main menu buttons
-        self.widgetlist.widget(self.widgetlist.mainmenuindex)\
+        self.widgetlist.widget(self.widgetlist.mainMenuIndex)\
             .warningPressed.connect(self.explainWarning)
 
 
-        self.widgetlist.widget(self.widgetlist.currentsessionindex)\
+        self.widgetlist.widget(self.widgetlist.currentSessionIndex)\
             .cancelPressed.connect(self.showmainmenu)                       # Connects the signal emitted by the 'Avsluta mätning' in the main menu
 
-        self.widgetlist.widget(self.widgetlist.databasesettingsindex)\
+        self.widgetlist.widget(self.widgetlist.databaseSettingsIndex)\
             .cancelPressed.connect(self.showchannelsettings)
-        self.widgetlist.widget(self.widgetlist.databasesettingsindex)\
+        self.widgetlist.widget(self.widgetlist.databaseSettingsIndex)\
             .okPressed.connect(self.startsession)                           # Connects the signals emitted by the databasesettings page
 
-        self.widgetlist.widget(self.widgetlist.helppageindex)\
+        self.widgetlist.widget(self.widgetlist.helpPageIndex)\
             .cancelPressed.connect(self.showmainmenu)                       # Connects the signals emitted by the helppage
 
-        self.widgetlist.widget(self.widgetlist.channelsettingsindex)\
+        self.widgetlist.widget(self.widgetlist.channelSettingsIndex)\
             .backPressed.connect(self.showmainmenu)
-        self.widgetlist.widget(self.widgetlist.channelsettingsindex)\
+        self.widgetlist.widget(self.widgetlist.channelSettingsIndex)\
             .okPressed.connect(self.showdatabasesettings)                   # Connects the signals emitted by channelsettings page
 
-        self.widgetlist.widget(self.widgetlist.visualizedatabasesettingsindex)\
+        self.widgetlist.widget(self.widgetlist.visualizeDatabaseSettingsIndex)\
             .cancelPressed.connect(self.showmainmenu)
-        self.widgetlist.widget(self.widgetlist.visualizedatabasesettingsindex)\
+        self.widgetlist.widget(self.widgetlist.visualizeDatabaseSettingsIndex)\
             .okPressed.connect(self.showsessionlist)                        # Connects the signals emitted by the databasesettings page for visualizing a measuring session
 
-        self.widgetlist.widget(self.widgetlist.visualizesessionsettingsindex)\
+        self.widgetlist.widget(self.widgetlist.visualizeSessionSettingsIndex)\
             .backPressed.connect(self.showvisualizesettings)
-        self.widgetlist.widget(self.widgetlist.visualizesessionsettingsindex)\
+        self.widgetlist.widget(self.widgetlist.visualizeSessionSettingsIndex)\
             .sessionChosen.connect(self.fetchChannels)
-        self.widgetlist.widget(self.widgetlist.visualizesessionsettingsindex)\
+        self.widgetlist.widget(self.widgetlist.visualizeSessionSettingsIndex)\
             .okPressed.connect(self.visualize)                              # Connects the signals emitted by the visualize session page
 
     def explainWarning(self):
@@ -106,20 +106,20 @@ class Main(QtWidgets.QMainWindow):
         """
         useremote = \
             self.widgetlist.\
-                widget(self.widgetlist.visualizedatabasesettingsindex)\
+                widget(self.widgetlist.visualizeDatabaseSettingsIndex)\
                 .useRemote()                                                # Checks if the local or a remote database should be searched
         if useremote:                                                       # If remote, get remote channels
             remotedb = \
-                configinterface.read_config('config.cfg', 'remotevisual')
+                configInterface.read_config('config.cfg', 'remotevisual')
             channellist = \
-                Database.get_session_channel_list(remotedb, sessionid)
+                Database.getSessionChannelList(remotedb, sessionid)
         else:                                                               # Else, get local channels
             localdb = \
-                configinterface.read_config('config.cfg', 'default')
+                configInterface.read_config('config.cfg', 'default')
             channellist = \
-                Database.get_session_channel_list(localdb, sessionid)
+                Database.getSessionChannelList(localdb, sessionid)
 
-        self.widgetlist.widget(self.widgetlist.visualizesessionsettingsindex)\
+        self.widgetlist.widget(self.widgetlist.visualizeSessionSettingsIndex)\
             .updateChannelList(channellist)                                 # Use the channels to update the channel list on the session settings for the visualize page
 
 
@@ -135,13 +135,13 @@ class Main(QtWidgets.QMainWindow):
         """
         useremote = \
             self.widgetlist.\
-                widget(self.widgetlist.visualizedatabasesettingsindex)\
+                widget(self.widgetlist.visualizeDatabaseSettingsIndex)\
                 .useRemote()                                                # Checks the settings from the visualize page to see if local or remote database should be used in the visualization
 
         if useremote:                                                       # If remote get remote database settings
-            database = configinterface.read_config('config.cfg', 'remotevisual')
+            database = configInterface.read_config('config.cfg', 'remotevisual')
         else:                                                               # Else, get local database settings
-            database = configinterface.read_config('config.cfg', 'default')
+            database = configInterface.read_config('config.cfg', 'default')
 
         self.datadisplay = Datadisplay(dbvalues=database,
                                        sessionid=sessionid,
@@ -166,13 +166,13 @@ class Main(QtWidgets.QMainWindow):
 
         if hassection:                                                      # If the configfile has the section
             hasremote = parser.has_option('latestsession', 'remotedatabase')# Check for remote option
-            channels = configinterface.read_config('config.cfg', 'channels')# Fetch channels
+            channels = configInterface.read_config('config.cfg', 'channels')# Fetch channels
 
             channellist = {}
             for index in channels:
                 channellist[index] = ast.literal_eval(channels[index])      # Formats the channellist
 
-            sessionsettings = configinterface.read_config('config.cfg', 'latestsession')
+            sessionsettings = configInterface.read_config('config.cfg', 'latestsession')
             start = sessionsettings['start']
             end = sessionsettings['end']
             self.localdb = ast.literal_eval(sessionsettings['localdatabase'])
@@ -205,7 +205,7 @@ class Main(QtWidgets.QMainWindow):
                     self.usingremote = False
 
                 self.sessionrunning = True                                  # Used by other functions to check if a session is running
-                self.widgetlist.mainmenu.sessionstarted()                   # Change appearance of the mainmeny
+                self.widgetlist.mainMenu.sessionStarted()  # Change appearance of the mainmeny
                 self.datadisplay = Datadisplay(dbvalues=self.localdb,
                                                sessionid=self.localsessionid,
                                                channellist=channellist,
@@ -219,14 +219,14 @@ class Main(QtWidgets.QMainWindow):
         Displays a warning on the main menu page
         :return: 
         """
-        self.widgetlist.mainmenu.displayWarning(True)
+        self.widgetlist.mainMenu.displayWarning(True)
 
     def stopwarninguser(self):
         """
         Removes a warning from the main menu page
         :return: 
         """
-        self.widgetlist.mainmenu.displayWarning(False)
+        self.widgetlist.mainMenu.displayWarning(False)
 
     def showsessionlist(self):
         """
@@ -235,16 +235,16 @@ class Main(QtWidgets.QMainWindow):
         """
         useremote = \
             self.widgetlist. \
-                widget(self.widgetlist.visualizedatabasesettingsindex). \
+                widget(self.widgetlist.visualizeDatabaseSettingsIndex). \
                 useRemote()  # Fetch database type
         if useremote:  # If remote
-            remotedb = configinterface.read_config('config.cfg',
+            remotedb = configInterface.read_config('config.cfg',
                                                    'remotevisual')
-            self.widgetlist.widget(self.widgetlist.visualizesessionsettingsindex).updateSessionList(remotedb)
+            self.widgetlist.widget(self.widgetlist.visualizeSessionSettingsIndex).updateSessionList(remotedb)
         else:
-            localdb = configinterface.read_config('config.cfg', 'default')
-            self.widgetlist.widget(self.widgetlist.visualizesessionsettingsindex).updateSessionList(localdb)
-        self.widgetlist.setCurrentIndex(self.widgetlist.visualizesessionsettingsindex)
+            localdb = configInterface.read_config('config.cfg', 'default')
+            self.widgetlist.widget(self.widgetlist.visualizeSessionSettingsIndex).updateSessionList(localdb)
+        self.widgetlist.setCurrentIndex(self.widgetlist.visualizeSessionSettingsIndex)
         """
         sessionlist = self.getsessions()
         self.widgetlist.widget(self.widgetlist.visualizesessionsettingsindex).updateSessionList(sessionlist)
@@ -257,35 +257,35 @@ class Main(QtWidgets.QMainWindow):
         Display the database settings page for the visualize option
         :return: 
         """
-        self.widgetlist.setCurrentIndex(self.widgetlist.visualizedatabasesettingsindex)
+        self.widgetlist.setCurrentIndex(self.widgetlist.visualizeDatabaseSettingsIndex)
 
     def showdatabasesettings(self):
         """
         Display the database settings page for the start session option 
         :return: 
         """
-        self.widgetlist.setCurrentIndex(self.widgetlist.databasesettingsindex)
+        self.widgetlist.setCurrentIndex(self.widgetlist.databaseSettingsIndex)
 
     def showhelppage(self):
         """
         Display the help page
         :return: 
         """
-        self.widgetlist.setCurrentIndex(self.widgetlist.helppageindex)
+        self.widgetlist.setCurrentIndex(self.widgetlist.helpPageIndex)
 
     def showmainmenu(self):
         """
         Display the main menu
         :return: 
         """
-        self.widgetlist.setCurrentIndex(self.widgetlist.mainmenuindex)
+        self.widgetlist.setCurrentIndex(self.widgetlist.mainMenuIndex)
 
     def showchannelsettings(self):
         """
         Display the channel settings page
         :return: 
         """
-        self.widgetlist.setCurrentIndex(self.widgetlist.channelsettingsindex)
+        self.widgetlist.setCurrentIndex(self.widgetlist.channelSettingsIndex)
 
     def quit(self):
         """
@@ -320,16 +320,16 @@ class Main(QtWidgets.QMainWindow):
 
         endtimestamp = datetime.datetime.now()
         endtimestamp = endtimestamp.strftime("%Y-%m-%d %H:%M:%S")           # Get timestamp
-        configinterface.set_config('config.cfg',
+        configInterface.set_config('config.cfg',
                                    'latestsession',
                                    {'end': endtimestamp})                   # Write the timestamp to configfile
 
-        self.widgetlist.mainmenu.sessionended()                             # Change main menu appearance
-        Database.end_current_session(self.localdb, self.localsessionid)     # Give the local session an end time
+        self.widgetlist.mainMenu.sessionEnded()  # Change main menu appearance
+        Database.endCurrentSession(self.localdb, self.localsessionid)     # Give the local session an end time
         if self.usingremote:                                                # If using remote
             self.shouldendremote.set()
-            Database.end_current_session(self.remotedb,
-                                         self.remotesessionid)              # Give the remote session an end time
+            Database.endCurrentSession(self.remotedb,
+                                       self.remotesessionid)              # Give the remote session an end time
 
         self.datadisplay.close()                                            # Close the datadisplay window
         self.sessionrunning = False
@@ -344,15 +344,15 @@ class Main(QtWidgets.QMainWindow):
         """
         useremote = \
             self.widgetlist.\
-                widget(self.widgetlist.visualizedatabasesettingsindex).\
+                widget(self.widgetlist.visualizeDatabaseSettingsIndex).\
                 useRemote()                                                 # Fetch database type
         if useremote:                                                       # If remote
-            remotedb = configinterface.read_config('config.cfg',
+            remotedb = configInterface.read_config('config.cfg',
                                                    'remotevisual')
-            sessionlist = Database.get_session_list(remotedb)               # Get session from remote database
+            sessionlist = Database.getSessionList(remotedb)               # Get session from remote database
         else:
-            localdb = configinterface.read_config('config.cfg', 'default')
-            sessionlist = Database.get_session_list(localdb)                # Else, get sessions from local database
+            localdb = configInterface.read_config('config.cfg', 'default')
+            sessionlist = Database.getSessionList(localdb)                # Else, get sessions from local database
         return sessionlist
 
 
@@ -365,27 +365,27 @@ class Main(QtWidgets.QMainWindow):
         try:
             self.usingremote = \
                 self.widgetlist.\
-                    widget(self.widgetlist.databasesettingsindex).\
+                    widget(self.widgetlist.databaseSettingsIndex).\
                     useRemote()                                             # Checks if a remote database should be used
             self.localdb = \
-                configinterface.read_config('config.cfg', 'default')        # Gets configuration for the local database
+                configInterface.read_config('config.cfg', 'default')        # Gets configuration for the local database
             sessionname = \
                 self.widgetlist.\
-                    widget(self.widgetlist.channelsettingsindex).\
+                    widget(self.widgetlist.channelSettingsIndex).\
                     sessionname                                             # Gets the sessionname
             channellist = \
                 self.widgetlist.\
-                    widget(self.widgetlist.channelsettingsindex).\
+                    widget(self.widgetlist.channelSettingsIndex).\
                     channellist                                             # Gets a list of channels to use in the session
             timeintervall = \
                 self.widgetlist.\
-                    widget(self.widgetlist.channelsettingsindex).\
+                    widget(self.widgetlist.channelSettingsIndex).\
                     sessionintervall                                        # Gets the time intervall for the session
 
 
             if self.usingremote:                                            # If a remote should be used
                 self.remotedb = \
-                    configinterface.read_config('config.cfg', 'remote')     # Get remote database configurations
+                    configInterface.read_config('config.cfg', 'remote')     # Get remote database configurations
                 remotechannels = self.convertToRemoteChannels(channellist)
                 self.remotesessionid = \
                     Database.remote_start_new_session(dbvalues=self.remotedb,
@@ -416,7 +416,7 @@ class Main(QtWidgets.QMainWindow):
                 parser.remove_section('latestsession')                      # Remove previous information from the configfile
             with open('config.cfg', 'w') as w:
                 parser.write(w)
-            configinterface.set_config('config.cfg',
+            configInterface.set_config('config.cfg',
                                        'latestsession',
                                        writeitem)                           # Write the new information to the configfile
 
@@ -445,7 +445,7 @@ class Main(QtWidgets.QMainWindow):
                                            ongoing=True,
                                            timeintervall=timeintervall)     # Create a new window for displaying data
             self.datadisplay.show()                                         # Show the window
-            self.widgetlist.mainmenu.sessionstarted()                       # Change appearance of mainmenu
+            self.widgetlist.mainMenu.sessionStarted()  # Change appearance of mainmenu
             self.showmainmenu()                                             # Display the mainmeny
             self.sessionrunning = True
 
@@ -531,7 +531,7 @@ class Addthread(threading.Thread):
                 #list[id] = id+0.23
                 list[id] = random.randint(1, 100)                           # Generate random integers
             print(list)
-            Database.add_to_database(self.localdb, list, self.sessionid)    # Add values to the local database
+            Database.addToDatabase(self.localdb, list, self.sessionid)    # Add values to the local database
 
         self.shouldend.clear()                                              # Before exiting thread, clear Event object
 
@@ -572,14 +572,14 @@ class Addremotethread(QtCore.QThread):
         Fetches values from a local database and adds them to a remote database
         :return: 
         """
-        pid = configinterface.read_config('config.cfg', 'piid')
+        pid = configInterface.read_config('config.cfg', 'piid')
         piid = int(pid['id'])                                               # Gets the id of the Raspberry pi running the program
         while not self.addedalldata:
             try:
                 if self.programquit.wait(0):                                # If signaled that the program wants to terminate
                     self.timeintervall = 0                                  # Do additions immediately
                 if not self.shouldend.wait(self.timeintervall*10):          # Wait for timeintervall seconds
-                    sessionsettings = configinterface.read_config('config.cfg', 'latestsession')
+                    sessionsettings = configInterface.read_config('config.cfg', 'latestsession')
                     start = sessionsettings['start']
                     end = sessionsettings['end']                            # Get previous previous search parameters
                     if not end == '':                                       # If the session has been ended
@@ -590,11 +590,11 @@ class Addremotethread(QtCore.QThread):
 
 
                     end = datetime.datetime.now()                           # Get new end value to use in local database search
-                    valuelist = Database.get_measurements(dbvalues=self.localdb,
-                                                          sessionid=self.sessionid,
-                                                          channelid=None,
-                                                          starttime=start,
-                                                          endtime=end)      # Get measurements from the local database
+                    valuelist = Database.getMeasurements(dbvalues=self.localdb,
+                                                         sessionid=self.sessionid,
+                                                         channelid=None,
+                                                         starttime=start,
+                                                         endtime=end)      # Get measurements from the local database
                     templatestaddtime = None
                     templatestaddfractions = None
                     new = []
@@ -613,7 +613,7 @@ class Addremotethread(QtCore.QThread):
                                         data))                              # If the timestamp in this result matches the last timestamp in the previous result
                                                                             # dont add it to the new list
                     if not new == []:
-                        Database.remote_add_to_database(self.remotedb, new) # If the list is not empty, add values to the remote database
+                        Database.remoteAddToDatabase(self.remotedb, new) # If the list is not empty, add values to the remote database
 
                     self.latestaddtime = templatestaddtime
                     self.latestaddfractions = templatestaddfractions        # Set latest add timestamp
@@ -624,7 +624,7 @@ class Addremotethread(QtCore.QThread):
 
                     newstart = end.strftime('%Y-%m-%d %H:%M:%S')            # Write the end time used in the search to the configfile
                                                                             # To be used as start time in the next search
-                    configinterface.set_config('config.cfg', 'latestsession', {'start': newstart})
+                    configInterface.set_config('config.cfg', 'latestsession', {'start': newstart})
                 else:
                     self.shouldend.clear()
             except pymysql.err.Error as E:                                  # If the database raises an exception
@@ -746,11 +746,11 @@ class Currentsessionplot(FC):
         rawstart = rawnow - datetime.timedelta(seconds=100)
         now = rawnow.strftime('%Y-%m-%d %H:%M:%S')
         start = rawstart.strftime('%Y-%m-%d %H:%M:%S')
-        values = Database.get_measurements(dbvalues=self.dbvalues,
-                                           sessionid=self.sessionid,
-                                           channelid=self.plotchannel,
-                                           starttime=start,
-                                           endtime=now)
+        values = Database.getMeasurements(dbvalues=self.dbvalues,
+                                          sessionid=self.sessionid,
+                                          channelid=self.plotchannel,
+                                          starttime=start,
+                                          endtime=now)
         xaxisvalues = []
         yaxisvalues = []
         for index in values:
@@ -771,11 +771,11 @@ class Currentsessionplot(FC):
         self.timer.start(1000*self.timeintervall)
 
     def drawfigure(self):
-        values = Database.get_measurements(dbvalues=self.dbvalues,
-                                           sessionid=self.sessionid,
-                                           channelid=self.plotchannel,
-                                           starttime=None,
-                                           endtime=None)
+        values = Database.getMeasurements(dbvalues=self.dbvalues,
+                                          sessionid=self.sessionid,
+                                          channelid=self.plotchannel,
+                                          starttime=None,
+                                          endtime=None)
 
         xaxisvalues = []
         yaxisvalues = []
@@ -798,15 +798,15 @@ class Currentsessionplot(FC):
 if __name__ == '__main__':
     #remote = configinterface.read_config('config.cfg', 'createremote')
 
-    local = configinterface.read_config('config.cfg', 'default')
+    local = configInterface.read_config('config.cfg', 'default')
     #Database.create_remote_database(remote)
     parser = configparser.ConfigParser()
     with open('config.cfg', 'r') as file:
         parser.read_file(file)
         hasid = parser.has_section('piid')
     if not hasid:
-        id = str(Database.remote_add_new_pi(remote, 'placeholdername'))
-        configinterface.set_config('config.cfg', 'piid', {'id': id})
+        id = str(Database.remoteAddNewPi(remote, 'placeholdername'))
+        configInterface.set_config('config.cfg', 'piid', {'id': id})
     Database.create_local_database(local)
     app = QtWidgets.QApplication(sys.argv)
     window = Main()

@@ -4,12 +4,12 @@ This module can be used to create and interact with the system databases
 
 import pymysql
 import datetime
-import configinterface
+import configInterface
 
 
 
 
-def remote_add_new_pi(dbvalues, name):
+def remoteAddNewPi(dbvalues, name):
     """
     Adds a new pi to the remote database, this includes updating the channels table
     :param dbvalues: a python dictionary containing MySQL connection values
@@ -196,7 +196,7 @@ def start_new_session(dbvalues, name, channels):
         raise E
 
 
-def end_current_session(dbvalues, sessionid):
+def endCurrentSession(dbvalues, sessionid):
     """
     Adds an end value to a specified session 
     :param dbvalues: a python dictionary containing MySQL connection values
@@ -562,7 +562,7 @@ def remote_get_pi_list(dbvalues):
         raise E
 
 
-def get_session_list(dbvalues):
+def getSessionList(dbvalues):
     """
     Retrieves a list of all the pis currently in the remote database
     :param dbvalues: a python dictionary containing MySQL connection values
@@ -598,7 +598,7 @@ def get_session_list(dbvalues):
         raise E
 
 
-def get_session_channel_list(dbvalues, sessionid):
+def getSessionChannelList(dbvalues, sessionid):
     """    
     Retrieves a list of all channels in a session
     :param dbvalues: a python dictionary containing MySQL connection values
@@ -637,7 +637,7 @@ def get_session_channel_list(dbvalues, sessionid):
         raise E
 
 
-def get_measurements(dbvalues, sessionid, channelid, starttime, endtime):
+def getMeasurements(dbvalues, sessionid, channelid, starttime, endtime):
     """
     Retrieves measurements from the database using the arguments as search parameters
     :param dbvalues: a python dictionary containing MySQL connection values
@@ -702,7 +702,7 @@ def get_measurements(dbvalues, sessionid, channelid, starttime, endtime):
         raise E
 
 
-def add_to_database(dbvalues, list_of_items, sessionid):
+def addToDatabase(dbvalues, list_of_items, sessionid):
     """
     Adds measurements to the database from a list of values
     :param dbvalues: a python dictionary containing MySQL connection values
@@ -763,7 +763,7 @@ def add_to_database(dbvalues, list_of_items, sessionid):
         print(E2)
         raise E2
 
-def remote_add_to_database(dbvalues, list_of_items):
+def remoteAddToDatabase(dbvalues, list_of_items):
     """
     Adds measurements to the database from a list of values
     :param dbvalues: a python dictionary containing MySQL connection values
@@ -815,5 +815,5 @@ def convert_to_remote_insert(values, newsession, piid):
     return values
 
 if __name__ == '__main__':
-    db = configinterface.read_config('config.cfg', 'default')
+    db = configInterface.read_config('config.cfg', 'default')
     create_local_database(db)
