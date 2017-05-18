@@ -8,8 +8,8 @@ import datetime
 import UI
 import random
 import ast
-import pyqtgraph as pg
-import numpy
+#import pyqtgraph as pg
+#import numpy
 
 from PyQt5 import QtWidgets
 from PyQt5 import QtCore
@@ -233,9 +233,24 @@ class Main(QtWidgets.QMainWindow):
         Display the sessionlist page
         :return: 
         """
+        useremote = \
+            self.widgetlist. \
+                widget(self.widgetlist.visualizedatabasesettingsindex). \
+                useRemote()  # Fetch database type
+        if useremote:  # If remote
+            remotedb = configinterface.read_config('config.cfg',
+                                                   'remotevisual')
+            self.widgetlist.widget(self.widgetlist.visualizesessionsettingsindex).updateSessionList(remotedb)
+        else:
+            localdb = configinterface.read_config('config.cfg', 'default')
+            self.widgetlist.widget(self.widgetlist.visualizesessionsettingsindex).updateSessionList(localdb)
+        self.widgetlist.setCurrentIndex(self.widgetlist.visualizesessionsettingsindex)
+        """
         sessionlist = self.getsessions()
         self.widgetlist.widget(self.widgetlist.visualizesessionsettingsindex).updateSessionList(sessionlist)
         self.widgetlist.setCurrentIndex(self.widgetlist.visualizesessionsettingsindex)
+        """
+
 
     def showvisualizesettings(self):
         """
@@ -467,8 +482,6 @@ class Main(QtWidgets.QMainWindow):
         message = QtWidgets.QMessageBox()
         message.setMinimumSize(1000, 800)
         message.setText(messagetext)
-        if yesbutton:
-            yesbutton
         closebutton = message.addButton(closebuttontext, QtWidgets.QMessageBox.YesRole)
         closebutton.clicked.connect(message.close)
         message.exec_()
@@ -683,7 +696,8 @@ class Datadisplay(QtWidgets.QDialog):
     def switchchannel(self):
         self.currentchannel = self.dropdown.currentText()
         newtitle = "Kanal: %s" % self.currentchannel
-        self.plot.channelswitch(newid=self.channelpairs[self.currentchannel], newtitle=newtitle)
+        self.plot.channelswitch(newid=self.channelpairs[self.currentchannel],
+                                newtitle=newtitle)
         if self.ongoing == True:
             pass
             self.plot.updatefigure()
@@ -732,7 +746,9 @@ class Currentsessionplot(FC):
         rawstart = rawnow - datetime.timedelta(seconds=100)
         now = rawnow.strftime('%Y-%m-%d %H:%M:%S')
         start = rawstart.strftime('%Y-%m-%d %H:%M:%S')
-        values = Database.get_measurements(dbvalues=self.dbvalues, sessionid=self.sessionid, channelid=self.plotchannel,
+        values = Database.get_measurements(dbvalues=self.dbvalues,
+                                           sessionid=self.sessionid,
+                                           channelid=self.plotchannel,
                                            starttime=start,
                                            endtime=now)
         xaxisvalues = []
@@ -755,8 +771,11 @@ class Currentsessionplot(FC):
         self.timer.start(1000*self.timeintervall)
 
     def drawfigure(self):
-        values = Database.get_measurements(dbvalues=self.dbvalues, sessionid=self.sessionid, channelid=self.plotchannel,
-                                           starttime=None, endtime=None)
+        values = Database.get_measurements(dbvalues=self.dbvalues,
+                                           sessionid=self.sessionid,
+                                           channelid=self.plotchannel,
+                                           starttime=None,
+                                           endtime=None)
 
         xaxisvalues = []
         yaxisvalues = []
@@ -777,9 +796,10 @@ class Currentsessionplot(FC):
 
 
 if __name__ == '__main__':
-    remote = configinterface.read_config('config.cfg', 'createremote')
+    #remote = configinterface.read_config('config.cfg', 'createremote')
+
     local = configinterface.read_config('config.cfg', 'default')
-    Database.create_remote_database(remote)
+    #Database.create_remote_database(remote)
     parser = configparser.ConfigParser()
     with open('config.cfg', 'r') as file:
         parser.read_file(file)

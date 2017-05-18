@@ -1,6 +1,7 @@
 from PyQt5 import QtWidgets
 from PyQt5 import QtCore
 from PyQt5 import QtGui
+from PyQt5 import QtSql
 import configinterface
 import sys
 import configparser
@@ -27,6 +28,12 @@ class Visualizationsettings(QtWidgets.QWidget):
 
         message = QtWidgets.QLabel("Välj en mätning att visa")              # Creates the top message of the widget
 
+
+        self.model = QtSql.QSqlQueryModel()
+        view = QtWidgets.QTableView()
+        view.setModel(self.model)
+        view.show()
+        """
         self.sessionlist = QtWidgets.QListWidget()
         self.sessionlist.setMinimumSize(600, 100)
         self.channellist = None
@@ -37,11 +44,13 @@ class Visualizationsettings(QtWidgets.QWidget):
 
         scrollablesessions = QtWidgets.QScrollArea()
         scrollablesessions.setWidget(self.sessionlist)                      # Creates a scroll area
+        """
 
         vbox = QtWidgets.QVBoxLayout()
         vbox.addStretch(1)
         vbox.addWidget(message)
-        vbox.addWidget(scrollablesessions)
+        #vbox.addWidget(scrollablesessions)
+        vbox.addWidget(view)
         vbox.addWidget(buttons)
         vbox.addStretch(2)
 
@@ -80,13 +89,32 @@ class Visualizationsettings(QtWidgets.QWidget):
         self.currentsession = int(list[0])
         self.sessionChosen.emit(int(list[0]))                               # Extracts the session id and uses it as an emit argument
 
+
+    def updateSessionList(self, dbvalues):
+        db = QtSql.QSqlDatabase.addDatabase('QMYSQL3') # Test QMYSQL3?
+        db.setDatabaseName(dbvalues['name'])
+        db.setHostName(dbvalues['host'])
+        db.setPort(int(dbvalues['port']))
+        db.setUserName(dbvalues['user'])
+        db.setPassword(dbvalues['password'])
+
+        connected = db.open()
+
+
+        if connected:
+            self.model = QtSql.QSqlQueryModel()
+            self.model.setQuery("Select * from sessions", db)
+
+
+
+    """
     def updateSessionList(self, idandnamelist):
-        """
+        
         Updates the list of sessions displayed in the widget
         :param idandnamelist: a list or tuple containing list or tuple of channel ids and channel names
         Example: ((1, 'Session one'), (2, 'session two'))
         :return: 
-        """
+    
         self.sessionlist.clear()                                            # Removes the previous items in the list
         for item in idandnamelist:                                          # For each item in the received list
             widgetitem = QtWidgets.QListWidgetItem()
@@ -95,7 +123,7 @@ class Visualizationsettings(QtWidgets.QWidget):
             self.sessionlist.itemActivated.emit(widgetitem)
             self.sessionlist.itemClicked.emit(widgetitem)                   # Emit the item when it is chosen
         self.currentsession = None                                          # Makes sure the user has to choose an item before moving to the nect page
-
+    """
     def updateChannelList(self, channellist):
         """
         Updates the list of channels connected to a session
