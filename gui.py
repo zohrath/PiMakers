@@ -9,7 +9,6 @@ import UI
 import random
 import ast
 
-
 from PyQt5 import QtWidgets
 from PyQt5 import QtCore
 from PyQt5 import QtGui
@@ -230,23 +229,9 @@ class Main(QtWidgets.QMainWindow):
         Display the sessionlist page
         :return: 
         """
-        useRemote = \
-            self.widgetList. \
-                widget(self.widgetList.visualizeDatabaseSettingsIndex). \
-                useRemote()  # Fetch database type
-        if useRemote:  # If remote
-            remoteDatabase = configInterface.readConfig('config.cfg',
-                                                   'remotevisual')
-            self.widgetList.widget(self.widgetList.visualizeSessionSettingsIndex).updateSessionList(remoteDatabase)
-        else:
-            localDatabase = configInterface.readConfig('config.cfg', 'default')
-            self.widgetList.widget(self.widgetList.visualizeSessionSettingsIndex).updateSessionList(localDatabase)
+        sessionList = self.getSessions()
+        self.widgetList.widget(self.widgetList.visualizeSessionSettingsIndex).updateSessionList(sessionList)
         self.widgetList.setCurrentIndex(self.widgetList.visualizeSessionSettingsIndex)
-        """
-        sessionlist = self.getsessions()
-        self.widgetlist.widget(self.widgetlist.visualizesessionsettingsindex).updateSessionList(sessionlist)
-        self.widgetlist.setCurrentIndex(self.widgetlist.visualizesessionsettingsindex)
-        """
 
 
     def showVisualizeSettings(self):
@@ -469,16 +454,20 @@ class Main(QtWidgets.QMainWindow):
             self.messageToUser(messageText=wrongPortType,
                                closeButtonText="Stäng")
 
-    def messageToUser(self, messageText, yesbuttontext, closeButtonText):
+    def messageToUser(self, messageText, yesbuttontext=None, closeButtonText=None):
         """
         Creteas a window displaying a specified message to the user
         :param messageText: A string representing the message to display 
+        
         :param closeButtonText: A string representing the text to be shown on the close button
         :return: 
         """
         message = QtWidgets.QMessageBox()
         message.setMinimumSize(1000, 800)
         message.setText(messageText)
+        if not yesbuttontext == None:
+            yesbutton = message.addButton(yesbuttontext, QtWidgets.QMessageBox.AcceptRole)
+            yesbutton.clicked.connect(self.closeApplication)
         closebutton = message.addButton(closeButtonText, QtWidgets.QMessageBox.YesRole)
         closebutton.clicked.connect(message.close)
         message.exec_()
@@ -649,6 +638,7 @@ class DataDisplay(QtWidgets.QDialog):
         self.currentChannel = next(iter(self.channelPairs))
         self.ongoing = ongoing
 
+
         QtWidgets.QDialog.__init__(self, parent)
 
         self.plot = Currentsessionplot(DatabaseValues=databaseValues,
@@ -701,6 +691,8 @@ class DataDisplay(QtWidgets.QDialog):
         else:
             self.plot.drawFigure()
 
+    def closeEvent(self, QCloseEvent):
+        self.plot.stopUpdate()
 
 
 
@@ -727,6 +719,9 @@ class Currentsessionplot(FC):
         FC.updateGeometry(self)
         self.timer = QtCore.QTimer()
         self.timer.timeout.connect(self.updateFigure)
+
+    def stopUpdate(self):
+        self.timer.stop()
 
 
     def channelSwitch(self, newId, newTitle):
