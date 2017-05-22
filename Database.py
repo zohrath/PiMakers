@@ -815,5 +815,5 @@ def convertToRemoteInsert(values, newsession, piid):
     return values
 
 if __name__ == '__main__':
-    db = configInterface.read_config('config.cfg', 'default')
+    db = configInterface.readConfig('config.cfg', 'default')
     createLocalDatabase(db)

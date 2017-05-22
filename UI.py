@@ -280,9 +280,9 @@ class Channelsettings(QtWidgets.QWidget):
                 parser.remove_section('channels')                           # Removes the previous channels
             with open('config.cfg', 'w+') as w:
                 parser.write(w)                                             # Writes the removal to the file
-            configInterface.set_config('config.cfg',
+            configInterface.setConfig('config.cfg',
                                        'channels',
-                                       channellistforwrite)                 # Writes the new channels to the configfile
+                                      channellistforwrite)                 # Writes the new channels to the configfile
 
         except AttributeError:                                              # A channel is missing some input
             textmissing = \
@@ -518,9 +518,9 @@ class Databasesettings(QtWidgets.QWidget):
                 errorocurred = True
             else:
                 newremotevalues = {'host': host, 'user': user, 'port': port, 'name': name, 'password': password}
-                configInterface.set_config('config.cfg',
-                                           self.writesection,
-                                           newremotevalues)                     # Write the database settings to the configfile
+                configInterface.setConfig('config.cfg',
+                                          self.writesection,
+                                          newremotevalues)                     # Write the database settings to the configfile
 
         if not errorocurred:
             self.okPressed.emit()                                               # Emit the okPressed signal
@@ -581,11 +581,11 @@ class Databaseform(QtWidgets.QWidget):
         self.passwordlabel.setFont(font)
         self.passwordlabel.setMinimumSize(50, 50)
 
-        hasprevious = configInterface.has_section('config.cfg', 'remote')
+        hasprevious = configInterface.hasSection('config.cfg', 'remote')
 
         if hasprevious:
             previous_remote_database = \
-                configInterface.read_config('config.cfg', 'remote')         # Reads previously used database configs
+                configInterface.readConfig('config.cfg', 'remote')         # Reads previously used database configs
             self.hosttext = previous_remote_database['host']
             self.porttext = previous_remote_database['port']
             self.usertext = previous_remote_database['user']

@@ -5,7 +5,7 @@ import configparser
 
 
 
-def read_config(file, section):
+def readConfig(file, section):
     """
     Reads the options for a specified section in a specified configuration file
     :param file: a string containing the name of the file to be read
@@ -18,9 +18,9 @@ def read_config(file, section):
         reader.read(file)
 
         if reader.has_section(section):                                         # Checks if the section exists
-            valuelist = reader.items(section)
+            valueList = reader.items(section)
             configs = {}
-            for item in valuelist:                                              # Creates a dictionary of the values
+            for item in valueList:                                              # Creates a dictionary of the values
                 configs[item[0]] = item[1]
             return configs
     except TypeError as T:
@@ -28,7 +28,7 @@ def read_config(file, section):
         print(T)
         raise T
 
-def set_config(file, section, optionvaluepairs):
+def setConfig(file, section, optionvaluepairs):
     '''
     This function updates a section in a configuration file
     :param file: the configuration file
@@ -51,7 +51,7 @@ def set_config(file, section, optionvaluepairs):
         print(R)
         return False
 
-def has_section(configfile, section):
+def hasSection(configfile, section):
     try:
         parser = configparser.ConfigParser()
         with open(configfile, 'r+') as r:
