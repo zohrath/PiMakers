@@ -1,8 +1,8 @@
 import serial, time
 
-    ser = serial.Serial("/dev/ttyUSB0", 57600, timeout=1, xonxoff=1)
-    ser.write("*RST\r\n")
-    ser.write("*CLS\r\n")
+ser = serial.Serial("/dev/ttyUSB0", 57600, timeout=1, xonxoff=1)
+ser.write("*RST\r\n")
+ser.write("*CLS\r\n")
 
 
 
