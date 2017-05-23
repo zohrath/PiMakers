@@ -2,9 +2,11 @@ from PyQt5 import QtWidgets
 from PyQt5 import QtCore
 from PyQt5 import QtGui
 
+
 import configInterface
 import configparser
-
+import Communication
+import inspect
 
 class Channelsettings(QtWidgets.QWidget):
     backPressed = QtCore.pyqtSignal()
@@ -89,18 +91,22 @@ class Channelsettings(QtWidgets.QWidget):
                     channelunit = "%s" % (self.tableWidget.item(i, 1).text(),)
                     channeltolerance = "%s" % (self.tableWidget.item(i, 2).text(),)
                     channelname = "%s" % (self.tableWidget.item(i, 3).text(),)
+
+                    channelstorhet = "%s" % (self.tableWidget.cellWidget(i, 4).currentText())
                     if channelname == "":
                         raise AttributeError
                     self.channellist[channelid] = \
                         [channelidalias,
                         channelname,
                         channelunit,
-                        channeltolerance]                                   # Collect channel information and add it to the list of channels
+                        channeltolerance,
+                        channelstorhet]                                   # Collect channel information and add it to the list of channels
                     channellistforwrite[channelid] = \
                         str([channelidalias,
                          channelname,
                          channelunit,
-                         channeltolerance])
+                         channeltolerance,
+                         channelstorhet])
 
                     float(channeltolerance)                                 # Raises a ValueError if channeltolerance can not be converted to float
 
@@ -246,17 +252,19 @@ class Channelsettings(QtWidgets.QWidget):
         self.tableWidget.setColumnWidth(4, 100)
 
     def createUnitList(self):
-        
-        parser = configparser.ConfigParser()
-        with open('config.cfg', 'r+') as configfile:
-            parser.read_file(configfile)
-            hasSection = parser.has_section('unit')
 
-        if hasSection:
-            result = configInterface.readConfig('config.cfg', 'unit')
-            return result
-        else:
-            return None
+        functionList = self.filterList()
+        return functionList
+
+
+    def filterList(self):
+        list = []
+        temp = inspect.getmembers(Communication, inspect.isfunction)
+
+        for index in temp:
+            list.append(index[0])
+
+        return list
 
     def _checkrow(self, checkbox):
         """

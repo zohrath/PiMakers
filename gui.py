@@ -8,6 +8,7 @@ import datetime
 import UI
 import random
 import ast
+import Communication
 
 from PyQt5 import QtWidgets
 from PyQt5 import QtCore
@@ -512,9 +513,11 @@ class Addthread(threading.Thread):
         while not self.shouldend.wait(self.timeInterval):                  # While the thread has not been told to stop
                                                                             # wait for timeintervall amount of seconds
             list = {}
+            addlist = self.getData(self.channelList)
+            print(addlist)
             for item in self.channelList:
                 id = int(item)
-                self.getData(channelList)
+
                 list[id] = random.randint(1, 100)                           # Generate random integers
             print(list)
             Database.addToDatabase(self.localDatabase, list, self.sessionId)    # Add values to the local database
@@ -524,21 +527,30 @@ class Addthread(threading.Thread):
     def getData(self, channelList):
 
 
+        returnlist = {}
         measurementlist = {}
         lookupList = {}
         for index in channelList:
             lookupList[channelList[index][0]] = index
-            measurementlist[channelList[index][4]] = measurementlist[channelList[index][4]] + [channelList[index][0], ]
-
+            print(lookupList)
+            if channelList[index][4] in measurementlist:
+                measurementlist[channelList[index][4]] = measurementlist[channelList[index][4]] + [channelList[index][0], ]
+            else:
+                measurementlist[channelList[index][4]] = [channelList[index][0], ]
+            print(measurementlist)
         valuelist = {}
         for index in measurementlist:
             stringargument = str(measurementlist[index])
             stringargument = stringargument[1:-1]
 
-            functionToCall = getattr(test, index)
-            resultString = functionToCall(stringargument)
-            print(resultString)
+            functionToCall = getattr(Communication, index)
+            result = functionToCall(stringargument)
 
+            newlistentry = dict(zip(measurementlist[index], result))
+
+            for index3 in lookupList:
+                returnlist[lookupList[index3]] = newlistentry[index3]
+        return returnlist
 
 
 
