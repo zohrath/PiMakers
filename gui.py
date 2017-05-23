@@ -514,12 +514,32 @@ class Addthread(threading.Thread):
             list = {}
             for item in self.channelList:
                 id = int(item)
-                #list[id] = id+0.23
+                self.getData(channelList)
                 list[id] = random.randint(1, 100)                           # Generate random integers
             print(list)
             Database.addToDatabase(self.localDatabase, list, self.sessionId)    # Add values to the local database
 
         self.shouldend.clear()                                              # Before exiting thread, clear Event object
+
+    def getData(self, channelList):
+
+
+        measurementlist = {}
+        lookupList = {}
+        for index in channelList:
+            lookupList[channelList[index][0]] = index
+            measurementlist[channelList[index][4]] = measurementlist[channelList[index][4]] + [channelList[index][0], ]
+
+        valuelist = {}
+        for index in measurementlist:
+            stringargument = str(measurementlist[index])
+            stringargument = stringargument[1:-1]
+
+            functionToCall = getattr(test, index)
+            resultString = functionToCall(stringargument)
+            print(resultString)
+
+
 
 
 class AddRemoteThread(QtCore.QThread):

@@ -5,6 +5,7 @@ from PyQt5 import QtGui
 import configInterface
 import configparser
 
+
 class Channelsettings(QtWidgets.QWidget):
     backPressed = QtCore.pyqtSignal()
     okPressed = QtCore.pyqtSignal()                                         # Custom pyqt signals
@@ -30,6 +31,8 @@ class Channelsettings(QtWidgets.QWidget):
                              "som ska användas i mätningen")                # Creates the message displayed on top of the page
 
         input = self.sessioninfo()                                          # Creates session information inputs
+
+
 
 
         vbox = QtWidgets.QVBoxLayout()
@@ -190,10 +193,12 @@ class Channelsettings(QtWidgets.QWidget):
         """
         self.tableWidget = QtWidgets.QTableWidget()
         self.tableWidget.setMinimumSize(400, 200)
-        self.tableWidget.setColumnCount(4)
+        self.tableWidget.setColumnCount(5)
         self.tableWidget.setObjectName("tableWidget")
         self.tableWidget.setRowCount(60)
         self.tableWidget.setShowGrid(True)                                  # Creates the actual table
+
+        list = self.createUnitList()
 
         for i in range(60):                                                 # For each row in the table
             checkbox = QtWidgets.QTableWidgetItem()
@@ -206,6 +211,10 @@ class Channelsettings(QtWidgets.QWidget):
             self.tableWidget.setItem(i, 0, checkbox)                        # Add the checkbox to the first column
             self.tableWidget.itemClicked.emit(checkbox)
             self.tableWidget.itemActivated.emit(checkbox)                   # Emit the checkbox when it is pressed
+            dropdown = QtWidgets.QComboBox()
+            for index in list:
+                dropdown.addItem(index)
+            self.tableWidget.setCellWidget(i, 4, dropdown)
 
         self.tableWidget.itemClicked.connect(self._checkrow)
         self.tableWidget.itemActivated.connect(self._checkrow)              # Connects the emit signal to the checkrow function
@@ -221,18 +230,33 @@ class Channelsettings(QtWidgets.QWidget):
         unitheader = QtWidgets.QTableWidgetItem("Enhet")
         toleranceheader = QtWidgets.QTableWidgetItem("Tolerans")
         nameheader = QtWidgets.QTableWidgetItem("Namn")
+        storhetheader = QtWidgets.QTableWidgetItem("Storhet")
+
         self.tableWidget.setHorizontalHeaderItem(0, useheader)
         self.tableWidget.setHorizontalHeaderItem(1, unitheader)
         self.tableWidget.setHorizontalHeaderItem(2, toleranceheader)
         self.tableWidget.setHorizontalHeaderItem(3, nameheader)             # Adds a label to each column in the table
+        self.tableWidget.setHorizontalHeaderItem(4, storhetheader)
 
         self.tableWidget.verticalHeader().setCascadingSectionResizes(True)
         self.tableWidget.setColumnWidth(0, 120)
         self.tableWidget.setColumnWidth(1, 100)
         self.tableWidget.setColumnWidth(2, 100)
         self.tableWidget.setColumnWidth(3, 100)                             # Sets the sizes of the columns
+        self.tableWidget.setColumnWidth(4, 100)
 
+    def createUnitList(self):
+        
+        parser = configparser.ConfigParser()
+        with open('config.cfg', 'r+') as configfile:
+            parser.read_file(configfile)
+            hasSection = parser.has_section('unit')
 
+        if hasSection:
+            result = configInterface.readConfig('config.cfg', 'unit')
+            return result
+        else:
+            return None
 
     def _checkrow(self, checkbox):
         """
