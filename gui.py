@@ -9,6 +9,8 @@ import UI
 import random
 import ast
 import Communication
+import matplotlib
+matplotlib.use("QT5agg")
 
 from PyQt5 import QtWidgets
 from PyQt5 import QtCore
@@ -531,12 +533,12 @@ class Addthread(threading.Thread):
         measurementlist = {}
         lookupList = {}
         for index in channelList:
-            lookupList[channelList[index][0]] = index
+            lookupList[int(channelList[index][0])] = int(index)
             print(lookupList)
             if channelList[index][4] in measurementlist:
-                measurementlist[channelList[index][4]] = measurementlist[channelList[index][4]] + [channelList[index][0], ]
+                measurementlist[channelList[index][4]] = measurementlist[channelList[index][4]] + [int(channelList[index][0]), ]
             else:
-                measurementlist[channelList[index][4]] = [channelList[index][0], ]
+                measurementlist[channelList[index][4]] = [int(channelList[index][0]), ]
             print(measurementlist)
         valuelist = {}
         for index in measurementlist:
