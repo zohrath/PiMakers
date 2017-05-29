@@ -33,7 +33,8 @@ class DataDisplay(QtWidgets.QDialog):
                                        plotChannels=self.currentChannels,
                                        timeIntervall=timeInterval)
 
-        self.toolbar = NT(self.plot, self)
+        self.toolbar = Toolbar(self.plot, self.ongoing)
+
 
         if self.ongoing:
             self.plot.updateFigure()
@@ -77,6 +78,7 @@ class DataDisplay(QtWidgets.QDialog):
         hbox.addStretch(1)
         self.setModal(False)
         self.setLayout(hbox)
+
 
     def exportValues(self):
         values = self.plot.getValues()
@@ -186,7 +188,8 @@ class Currentsessionplot(FC):
         #self.figure.suptitle(figureTitle)
         self.axes = self.figure.add_subplot(111)
         self.axes.xaxis_date()
-       # self.axes.hold(False)
+        # self.axes.hold(False)
+
 
 
         FC.__init__(self, self.figure)
@@ -194,12 +197,24 @@ class Currentsessionplot(FC):
         FC.setSizePolicy(self, QtWidgets.QSizePolicy.Expanding,
                          QtWidgets.QSizePolicy.Expanding)
 
+
         FC.updateGeometry(self)
         self.timer = QtCore.QTimer()
         self.timer.timeout.connect(self.updateFigure)
+        self.mpl_connect('button_press_event', self.onClick)
+
+    def onClick(self, event):
+        if self.toolbar._active is not None:
+            self.timer.stop()
+
+    def timerIsActive(self):
+        return self.timer.isActive()
 
     def stopUpdate(self):
         self.timer.stop()
+
+    def startTimer(self):
+        self.timer.start()
 
     def addChannel(self, key, value):
         self.plotChannels[key] = value
@@ -244,8 +259,6 @@ class Currentsessionplot(FC):
 
         #addToX = numpy.asarray(xAxisValues)
         #addToY = numpy.asarray(yAxisValues)
-
-        print("UPDATE FIGURE IS STILL RUNNING")
 
         #ticks = np.arange(rawstart, rawnow, 5)
         major = matdates.DateFormatter('%Y-%m-%d %H:%M:%S')
@@ -298,3 +311,16 @@ class Currentsessionplot(FC):
 
     def getValues(self):
         print("Hej")
+
+class Toolbar(NT):
+    def __init__(self, canvas, ongoing, parent=None):
+        self.figurecanvas = canvas
+        self.ongoing = ongoing
+        NT.__init__(self, self.figurecanvas, parent)
+
+    def home(self):
+        if self.ongoing:
+            if not self.figurecanvas.timerIsActive():
+                self.figurecanvas.startTimer()
+        else:
+            NT.home(self)

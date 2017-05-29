@@ -1,9 +1,9 @@
 import serial, time
-
+"""
 ser = serial.Serial("/dev/ttyUSB0", 57600, timeout=1, xonxoff=1)
 ser.write("*RST\r\n".encode('utf-8'))
 ser.write("*CLS\r\n".encode('utf-8'))
-
+"""
 
 
 def measure(channels):
@@ -45,7 +45,7 @@ def flowmeas(channels):
     InstrumentReturn = ser.readline().decode("utf-8")
     print(InstrumentReturn)
     try:
-    	bbb = list(map(float, InstrumentReturn.split(",")))
+        bbb = list(map(float, InstrumentReturn.split(",")))
     except:
         bbb = [-999, -999]
         ser.write("*RST\r\n".encode("utf-8"))
