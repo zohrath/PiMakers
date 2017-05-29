@@ -9,7 +9,6 @@ import UI
 import random
 import ast
 import Communication
-import numpy
 
 from PyQt5 import QtWidgets
 from PyQt5 import QtCore
