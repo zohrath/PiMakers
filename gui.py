@@ -9,14 +9,12 @@ import UI
 import random
 import ast
 import Communication
+import numpy
 
 from PyQt5 import QtWidgets
 from PyQt5 import QtCore
-from PyQt5 import QtGui
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FC
-from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NT
-from matplotlib.figure import Figure
-import matplotlib.dates as matdates
+from GraphWindowUI import DataDisplay
+
 
 class Main(QtWidgets.QMainWindow):
     def __init__(self):
@@ -513,8 +511,8 @@ class Addthread(threading.Thread):
         while not self.shouldend.wait(self.timeInterval):                  # While the thread has not been told to stop
                                                                             # wait for timeintervall amount of seconds
             list = {}
-            addlist = self.getData(self.channelList)
-            print(addlist)
+            #addlist = self.getData(self.channelList)
+            #print(addlist)
             for item in self.channelList:
                 id = int(item)
 
@@ -655,168 +653,6 @@ class AddRemoteThread(QtCore.QThread):
 
 
 
-class DataDisplay(QtWidgets.QDialog):
-    dataContents = QtCore.pyqtSignal()
-
-    def __init__(self, databaseValues, sessionId, channelList, ongoing, timeInterval, parent=None):
-        self.databaseValues = databaseValues
-        self.sessionId = sessionId
-        channelPairs = {}
-        for index in channelList:
-            displayChannel = channelList[index][0]
-            backendChannel = int(index)
-            channelPairs[displayChannel] = backendChannel
-        self.channelPairs = channelPairs
-        self.currentChannel = next(iter(self.channelPairs))
-        self.ongoing = ongoing
-
-
-        QtWidgets.QDialog.__init__(self, parent)
-
-        self.plot = Currentsessionplot(DatabaseValues=databaseValues,
-                                       sessionId=sessionId,
-                                       plotChannel=self.channelPairs[self.currentChannel],
-                                       timeIntervall=timeInterval,
-                                       figureTitle=self.currentChannel)
-        self.toolbar = NT(self.plot, self)
-
-        if self.ongoing:
-            self.plot.updateFigure()
-        else:
-            self.plot.drawFigure()
-
-
-        font = QtGui.QFont()
-        font.setFamily('Ubuntu')
-        font.setPointSize(18)
-
-        self.label = QtWidgets.QLabel("Visar kanal %s" % self.currentChannel)
-        self.label.setFont(font)
-
-        self.dropDown = QtWidgets.QComboBox()
-        self.dropDown.currentIndexChanged.connect(self.switchChannel)
-        for item in self.channelPairs:
-            self.dropDown.addItem(item)
-
-        vbox = QtWidgets.QVBoxLayout()
-        vbox.addStretch(1)
-        vbox.addWidget(self.dropDown)
-        vbox.addWidget(self.toolbar)
-        vbox.addWidget(self.plot)
-        vbox.addStretch(1)
-
-        hbox = QtWidgets.QHBoxLayout()
-        hbox.addStretch(1)
-        hbox.addLayout(vbox)
-        hbox.addStretch(1)
-        self.setModal(False)
-        self.setLayout(hbox)
-
-    def switchChannel(self):
-        self.currentChannel = self.dropDown.currentText()
-        newTitle = "Kanal: %s" % self.currentChannel
-        self.plot.channelSwitch(newId=self.channelPairs[self.currentChannel],
-                                newTitle=newTitle)
-        if self.ongoing == True:
-            pass
-            self.plot.updateFigure()
-        else:
-            self.plot.drawFigure()
-
-    def closeEvent(self, QCloseEvent):
-        self.plot.stopUpdate()
-
-
-
-class Currentsessionplot(FC):
-
-    def __init__(self, DatabaseValues, sessionId, plotChannel, timeIntervall, figureTitle):
-        self.databaseValues = DatabaseValues
-        self.sessionId = sessionId
-        self.plotChannel = plotChannel
-        self.timeInterval = timeIntervall
-        figureTitle = "Kanal: %s" % figureTitle
-
-        self.figure = Figure(figsize=(10, 10), dpi=100)
-        self.figure.suptitle(figureTitle)
-        self.axes = self.figure.add_subplot(111)
-        self.axes.hold(False)
-
-
-        FC.__init__(self, self.figure)
-
-        FC.setSizePolicy(self, QtWidgets.QSizePolicy.Expanding,
-                         QtWidgets.QSizePolicy.Expanding)
-
-        FC.updateGeometry(self)
-        self.timer = QtCore.QTimer()
-        self.timer.timeout.connect(self.updateFigure)
-
-    def stopUpdate(self):
-        self.timer.stop()
-
-
-    def channelSwitch(self, newId, newTitle):
-        self.timer.stop()
-        self.plotChannel = newId
-        self.figure.clear()
-        self.axes = self.figure.add_subplot(111)
-        self.figure.suptitle(newTitle, fontsize=20)
-        self.axes.hold(False)
-
-
-    def updateFigure(self):
-        rawNow = datetime.datetime.now()
-        rawStart = rawNow - datetime.timedelta(seconds=100)
-        now = rawNow.strftime('%Y-%m-%d %H:%M:%S')
-        start = rawStart.strftime('%Y-%m-%d %H:%M:%S')
-        values = Database.getMeasurements(databaseValues=self.databaseValues,
-                                          sessionId=self.sessionId,
-                                          channelId=self.plotChannel,
-                                          startTime=start,
-                                          endTime=now)
-        xAxisValues = []
-        yAxisValues = []
-        for index in values:
-            xAxisValues.append(index[2])
-            yAxisValues.append(index[4])
-
-        print("UPDATE FIGURE IS STILL RUNNING")
-
-        #ticks = np.arange(rawstart, rawnow, 5)
-        xFormater = matdates.DateFormatter('%H:%M:%S')
-        self.axes.xaxis.set_major_formatter(xFormater)
-        #self.axes.set_xticks(ticks)
-        self.axes.plot(xAxisValues, yAxisValues)
-        self.axes.set_xlim([rawStart, rawNow])
-        for tick in self.axes.get_xticklabels():
-            tick.set_rotation(10)                           # change this
-        self.draw()
-        self.timer.start(1000 * self.timeInterval)
-
-    def drawFigure(self):
-        values = Database.getMeasurements(databaseValues=self.databaseValues,
-                                          sessionId=self.sessionId,
-                                          channelId=self.plotChannel,
-                                          startTime=None,
-                                          endTime=None)
-
-        xAxisValues = []
-        yAxisValues = []
-        for index in values:
-            xAxisValues.append(index[2])
-            yAxisValues.append(index[4])
-
-        # ticks = np.arange(rawstart, rawnow, 5)
-        #xformater = matdates.DateFormatter('%Y-%m-%d %H:%M:%S')
-        #self.axes.xaxis.set_major_formatter(xformater)
-        # self.axes.set_xticks(ticks)
-        self.axes.plot(xAxisValues, yAxisValues)
-        #self.axes.set_xlim([rawstart, rawnow])
-        for tick in self.axes.get_xticklabels():
-            tick.set_rotation(10)  # change this
-        self.draw()
-
 
 
 if __name__ == '__main__':
@@ -825,7 +661,7 @@ if __name__ == '__main__':
     local = configInterface.readConfig('config.cfg', 'default')
     #Database.create_remote_database(remote)
     parser = configparser.ConfigParser()
-    with open('config.cfg', 'r') as file:
+    with open('config.cfg', 'r+') as file:
         parser.read_file(file)
         hasid = parser.has_section('piid')
     if not hasid:
