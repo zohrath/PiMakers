@@ -89,7 +89,7 @@ class Main(QtWidgets.QMainWindow):
         message = "Varning: Anslutningen till den databas som används i mätningen är nere. \n" \
                   "Mätningen kommer att fortsätta lokalt samtidigt som anslutningen försöker återuprättas. \n" \
                   "Varningssymbolen i startmenyn kommer att försvinna när anslutningen är återupprättad."
-        self.messageToUser(messageText=message, yesbuttontext=None, closeButtonText="Stäng")
+        self.messageToUser(messageText=message, closeButtonText="Stäng")
 
 
     def getChannels(self, sessionId):
@@ -446,12 +446,13 @@ class Main(QtWidgets.QMainWindow):
                 message = "Minst två kanaler har samma namn. Kanalnamn måste vara unika"
                 self.messageToUser(messageText=message,
                                    closeButtonText="Stäng")
+        """
         except ValueError as V:                                             # If wrong value in port field
             print(V)
             wrongPortType = "Fel typ för 'Port', ett heltal förväntas"
             self.messageToUser(messageText=wrongPortType,
                                closeButtonText="Stäng")
-
+        """
     def messageToUser(self, messageText, yesbuttontext=None, closeButtonText=None):
         """
         Creteas a window displaying a specified message to the user
@@ -478,9 +479,9 @@ class Main(QtWidgets.QMainWindow):
         """
         newList = {}
         for index in channelList:
-            newIndex = int(index)
+            newIndex = int(index[0])
             newIndex = newIndex + 60*(self.piid-1)
-            newList[str(newIndex)] = channelList[index]                     # Todo: Check if this can be done without hard coding
+            channelList[index][0] = str(newIndex)                     # Todo: Check if this can be done without hard coding
         return newList
 
 class Addthread(threading.Thread):
@@ -513,7 +514,7 @@ class Addthread(threading.Thread):
             #addlist = self.getData(self.channelList)
             #print(addlist)
             for item in self.channelList:
-                id = int(item)
+                id = int(self.channelList[item][0])
 
                 list[id] = random.randint(1, 100)                           # Generate random integers
             print(list)

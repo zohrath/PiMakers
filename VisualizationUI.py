@@ -106,7 +106,8 @@ class Visualizationsettings(QtWidgets.QWidget):
         """
         formattedchannellist = {}
         for index in channellist:
-            formattedchannellist[index[0]] = [index[1]]                     # Converts the list of channels to a dictionary
+            valueArray = [index[0], index[2], index[3]]
+            formattedchannellist[index[1]] = valueArray                     # Converts the list of channels to a dictionary
         self.channellist = formattedchannellist                             # Sets the channellist of the widget to be the dictionary
 
     def _messageToUser(self, messagetext, yesbuttontext, closebuttontext):

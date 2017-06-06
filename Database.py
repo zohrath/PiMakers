@@ -91,13 +91,14 @@ def remoteStartNewSession(databaseValues, name, channels, piid):
         tempList = []
         print(channels)
         for index in channels:
+            print(index)
             #channels[index] = ast.literal_eval(channels[index])
 
             tempList.append((sessionid,
-                             int(index),
+                             int(channels[index][0]),
+                             index,
                              channels[index][1],
-                             channels[index][2],
-                             float(channels[index][3])))                       # Creates a list with all insertvalues
+                             float(channels[index][2])))                       # Creates a list with all insertvalues
         insertValues = str(tempList)                                           # Turns the list into a string
         insertValues = insertValues[1:-1]                                      # Formats the string to query format
 
@@ -164,10 +165,10 @@ def startNewSession(databaseValues, name, channels):
             #channels[index] = ast.literal_eval(channels[index])
 
             tempList.append((sessionId,
-                             int(index),
+                             int(channels[index][0]),
+                             index,
                              channels[index][1],
-                             channels[index][2],
-                             float(channels[index][3])))                       # Creates a list with all insertvalues
+                             float(channels[index][2])))                       # Creates a list with all insertvalues
         insertValues = str(tempList)                                           # Turns the list into a string
         insertValues = insertValues[1:-1]                                      # Formats the string to query format
 
@@ -616,7 +617,7 @@ def getSessionChannelList(databaseValues, sessionId):
         cursor = conn.cursor()
 
         sql = "select fk_channels_session_channels, " \
-            "channelname_session_channels " \
+            "channelname_session_channels, unit_session_channels, tolerance_session_channels " \
             "from session_channels " \
             "where fk_sessions_session_channels = '%d'" % (sessionId,)        # Retrieves the channels of the sessionid
         cursor.execute(sql)
