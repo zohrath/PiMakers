@@ -7,9 +7,58 @@ import datetime
 import configInterface
 
 
+def remoteGetPiid(databaseValues, uuid):
+    try:
+        conn = pymysql.connect(user=databaseValues['user'],  # Establishes connection to the database
+                               host=databaseValues['host'],
+                               password=databaseValues['password'],
+                               database=databaseValues['name'],
+                               port=int(databaseValues['port']))
+        cursor = conn.cursor()
+
+        sql = "select id_pis from pis where uniquekey = '%s'" % (uuid, )
+        cursor.execute(sql)
+        result = cursor.fetchone()[0]
+        return result
+    except TypeError as T:
+        print('remote_add_new_pi Testerror: ')
+        print(T)
+        raise T
+    except pymysql.err.Error as E:                                             # Raise exception if MySQL gives one
+        print('remote_add_new_pi, MySQL Error')
+        print(E)
+        raise E
 
 
-def remoteAddNewPi(databaseValues, name):
+def remotePiExists(databaseValues, uuid):
+    try:
+        conn = pymysql.connect(user=databaseValues['user'],  # Establishes connection to the database
+                               host=databaseValues['host'],
+                               password=databaseValues['password'],
+                               database=databaseValues['name'],
+                               port=int(databaseValues['port']))
+        cursor = conn.cursor()
+
+        sql = "select * from pis where uniquekey = '%s'" % (uuid, )
+        cursor.execute(sql)
+        result = cursor.fetchone()
+        if result == ():
+            return False
+        else:
+            return True
+    except TypeError as T:
+        print('remote_add_new_pi Testerror: ')
+        print(T)
+        raise T
+    except pymysql.err.Error as E:                                             # Raise exception if MySQL gives one
+        print('remote_add_new_pi, MySQL Error')
+        print(E)
+        raise E
+
+
+
+
+def remoteAddNewPi(databaseValues):
     """
     Adds a new pi to the remote database, this includes updating the channels table
     :param databaseValues: a python dictionary containing MySQL connection values
@@ -25,24 +74,38 @@ def remoteAddNewPi(databaseValues, name):
                                port=int(databaseValues['port']))
         cursor = conn.cursor()
 
-        insertToPis = "insert into pis(name_pis) values('%s')" % (name,)       # SQL query for inserting pi to the table
+        trigger = "create trigger save_uuid after insert on pis for each row set @last_uuid = new.uniquekey"
+        cursor.execute(trigger)
+
+        insertToPis = "insert into pis(uniquekey) values(UUID())"        # SQL query for inserting pi to the table
         cursor.execute(insertToPis)
 
         sql = "select last_insert_id() from pis"                               # Retrieves the id given to the pi
         cursor.execute(sql)
         piid = cursor.fetchone()[0]
 
+        sql2 = "select @last_uuid"  # Retrieves the id given to the pi
+        cursor.execute(sql2)
+        unique = cursor.fetchone()[0]
+
+        droptrigger = "drop trigger save_uuid"
+        cursor.execute(droptrigger)
+
         insertValues = ""
         for index in range(1, 61):
-            insertValues = insertValues + " (%d)," % (piid, )                  # creates a string with the insertvalues
+            insertValues = insertValues + " ('%s')," % (unique, )                  # creates a string with the insertvalues
         insertValues = insertValues[:-1]                                       # Formats the string to query format
 
         insertToChannels = "insert into channels(fk_pis_channels) " \
             "values " + insertValues                                           # Insert query for the channels table
         cursor.execute(insertToChannels)
+
+        identifiers = {'piid': str(piid), 'uuid': unique}
+
+
         conn.commit()
         conn.close()
-        return piid
+        return identifiers
     except TypeError as T:
         print('remote_add_new_pi Testerror: ')
         print(T)
@@ -79,7 +142,7 @@ def remoteStartNewSession(databaseValues, name, channels, piid):
 
         insertSession = "insert into " \
             "sessions(name_sessions, start_sessions, fk_pis_sessions, startfractions_sessions) " \
-            "values('%s', '%s', %d, %f)" % (name, start, piid, startFractions)           # Insertion query for the sessions table
+            "values('%s', '%s', '%s', %f)" % (name, start, piid, startFractions)           # Insertion query for the sessions table
 
         cursor.execute(insertSession)
 
@@ -91,13 +154,14 @@ def remoteStartNewSession(databaseValues, name, channels, piid):
         tempList = []
         print(channels)
         for index in channels:
+            print(index)
             #channels[index] = ast.literal_eval(channels[index])
 
             tempList.append((sessionid,
-                             int(index),
+                             int(channels[index][0]),
+                             index,
                              channels[index][1],
-                             channels[index][2],
-                             float(channels[index][3])))                       # Creates a list with all insertvalues
+                             float(channels[index][2])))                       # Creates a list with all insertvalues
         insertValues = str(tempList)                                           # Turns the list into a string
         insertValues = insertValues[1:-1]                                      # Formats the string to query format
 
@@ -164,10 +228,10 @@ def startNewSession(databaseValues, name, channels):
             #channels[index] = ast.literal_eval(channels[index])
 
             tempList.append((sessionId,
-                             int(index),
+                             int(channels[index][0]),
+                             index,
                              channels[index][1],
-                             channels[index][2],
-                             float(channels[index][3])))                       # Creates a list with all insertvalues
+                             float(channels[index][2])))                       # Creates a list with all insertvalues
         insertValues = str(tempList)                                           # Turns the list into a string
         insertValues = insertValues[1:-1]                                      # Formats the string to query format
 
@@ -259,24 +323,25 @@ def createRemoteDatabase(databaseValues):
 
             createPis = "create table " \
                 "pis(id_pis int primary key auto_increment, " \
-                "name_pis varchar(50))"                                        # Creates the 'pis' table
+                "uniquekey varchar(50) unique)" \
+                                                                               # Creates the 'pis' table
 
             createChannels = "create table " \
                 "channels(id_channels int primary key auto_increment, " \
-                "fk_pis_channels int, " \
+                "fk_pis_channels varchar(50), " \
                 "foreign key (fk_pis_channels) " \
-                "references pis(id_pis))"                                      # Creates the 'channels' table
+                "references pis(uniquekey))"                                  # Creates the 'channels' table
 
             createSession = "create table " \
                 "sessions(id_sessions int primary key auto_increment, " \
                 "name_sessions varchar(50), " \
-                "fk_pis_sessions int, " \
+                "fk_pis_sessions varchar(50), " \
                 "start_sessions datetime, " \
                 "startfractions_sessions float, " \
                 "end_sessions datetime," \
                 "endfractions_sessions float, " \
                 "foreign key (fk_pis_sessions) " \
-                "references pis(id_pis))"                                 # Creates the 'sessions' table
+                "references pis(uniquekey))"                                 # Creates the 'sessions' table
 
             createMeasurements = "create table " \
                 "measurements(fk_sessions_measurements int, " \
@@ -616,7 +681,7 @@ def getSessionChannelList(databaseValues, sessionId):
         cursor = conn.cursor()
 
         sql = "select fk_channels_session_channels, " \
-            "channelname_session_channels " \
+            "channelname_session_channels, unit_session_channels, tolerance_session_channels " \
             "from session_channels " \
             "where fk_sessions_session_channels = '%d'" % (sessionId,)        # Retrieves the channels of the sessionid
         cursor.execute(sql)

@@ -9,6 +9,8 @@ import UI
 import random
 import ast
 import Communication
+import copy
+import serial
 
 from PyQt5 import QtWidgets
 from PyQt5 import QtCore
@@ -21,8 +23,7 @@ class Main(QtWidgets.QMainWindow):
         Creates the main window of the application
         """
         self.sessionRunning = False
-        piid = configInterface.readConfig('config.cfg', 'piid')
-        self.piid = int(piid['id'])
+
 
         #Creates main GUI
         QtWidgets.QMainWindow.__init__(self)
@@ -337,23 +338,45 @@ class Main(QtWidgets.QMainWindow):
 
             sessionName = w(settings).sessionname                                       # Gets the sessionname
             channelList = w(settings).channellist                                       # Gets a list of channels to use in the session
-            timeInterval = w(settings).sessionintervall                                 # Gets the time intervall for the session
-
+            timeInterval = w(settings).sessionintervall
+            localChannels = copy.deepcopy(channelList)                                 # Gets the time intervall for the session
 
             if self.useRemote:                                                          # If a remote should be used
                 self.remoteDatabase = \
                     configInterface.readConfig('config.cfg', 'remote')                  # Get remote database configurations
+
+                if configInterface.hasSection('config.cfg', 'piid'):
+                    identifiers = configInterface.readConfig('config.cfg', 'piid')
+                    self.uuid = identifiers['uuid']
+
+                    if not Database.remotePiExists(self.remoteDatabase, identifiers['uuid']):
+                        newIdentifiers = Database.remoteAddNewPi(self.remoteDatabase)
+                        print(newIdentifiers)
+                        configInterface.setConfig('config.cfg', 'piid', {'piid': str(self.piid)})
+                    else:
+                        self.piid = Database.remoteGetPiid(self.remoteDatabase, self.uuid)
+                        configInterface.setConfig('config.cfg', 'piid', {'piid': str(self.piid)})
+                else:
+
+                    newIdentifiers = Database.remoteAddNewPi(self.remoteDatabase)
+                    print(newIdentifiers)
+                    self.uuid = newIdentifiers['uuid']
+                    self.piid = int(newIdentifiers['piid'])
+                    configInterface.setConfig('config.cfg', 'piid', {'uuid': self.uuid, 'piid': str(self.piid)})
+
+                
                 remoteChannels = self.convertToRemoteChannels(channelList)
                 self.remoteSessionId = \
                     Database.remoteStartNewSession(databaseValues=self.remoteDatabase,
                                                    name=sessionName,
                                                    channels=remoteChannels,
-                                                   piid=self.piid)                      # Make a new session entry to the remote database
+                                                   piid=self.uuid)                      # Make a new session entry to the remote database
+
 
             self.localSessionId = \
                 Database.startNewSession(databaseValues=self.localDatabase,
                                          name=sessionName,
-                                         channels=channelList)                          # Make a new session entry to the local database
+                                         channels=localChannels)                          # Make a new session entry to the local database
 
 
             currentTime = datetime.datetime.now()
@@ -380,7 +403,7 @@ class Main(QtWidgets.QMainWindow):
             addThread = Addthread(localDatabase=self.localDatabase,
                                   sessionId=self.localSessionId,
                                   shouldEnd=self.shouldEnd,
-                                  channelList=channelList,
+                                  channelList=localChannels,
                                   timeInterval=timeInterval)
             addThread.start()                                               # Create a thread for adding to the local database and start it
 
@@ -398,7 +421,7 @@ class Main(QtWidgets.QMainWindow):
 
             self.dataDisplay = DataDisplay(databaseValues=self.localDatabase,
                                            sessionId=self.localSessionId,
-                                           channelList=channelList,
+                                           channelList=localChannels,
                                            ongoing=True,
                                            timeInterval=timeInterval)     # Create a new window for displaying data
             self.dataDisplay.show()                                         # Show the window
@@ -429,6 +452,7 @@ class Main(QtWidgets.QMainWindow):
             self.messageToUser(messageText=wrongPortType,
                                closeButtonText="Stäng")
 
+
     def messageToUser(self, messageText, yesbuttontext=None, closeButtonText=None):
         """
         Creteas a window displaying a specified message to the user
@@ -453,14 +477,17 @@ class Main(QtWidgets.QMainWindow):
         :param channelList: the list of channels
         :return: The same tuple given as an argument, but with new keys
         """
+        print(channelList)
         newList = {}
         for index in channelList:
-            newIndex = int(index)
-            newIndex = newIndex + 60*(self.piid-1)
-            newList[str(newIndex)] = channelList[index]                     # Todo: Check if this can be done without hard coding
+            newValues = channelList[index]
+            newValues[0] = int(newValues[0]) + 60*(self.piid-1)
+            newList[index] = newValues                     # Todo: Check if this can be done without hard coding
+        print(newList)
         return newList
 
 class Addthread(threading.Thread):
+
     def __init__(self, localDatabase, sessionId, channelList, shouldEnd, timeInterval):
         """
         Creates a new thread for adding values to the local database
@@ -477,7 +504,8 @@ class Addthread(threading.Thread):
         self.shouldend = shouldEnd
         self.channelList = channelList
         self.timeInterval = timeInterval
-        threading.Thread.__init__(self)
+        self.serialConnection = self.openSerialConnection()
+        threading.Thread.__init__(self)	
 
     def run(self):
         """
@@ -487,16 +515,34 @@ class Addthread(threading.Thread):
         while not self.shouldend.wait(self.timeInterval):                  # While the thread has not been told to stop
                                                                             # wait for timeintervall amount of seconds
             list = {}
-            #addlist = self.getData(self.channelList)
-            #print(addlist)
-            for item in self.channelList:
-                id = int(item)
+            try:
+                addlist = self.getData(self.channelList)
+                print(addlist)
+                Database.addToDatabase(self.localDatabase, addlist, self.sessionId)
+            except:
+                self.resetSerialConnection()
 
-                list[id] = random.randint(1, 100)                           # Generate random integers
-            print(list)
-            Database.addToDatabase(self.localDatabase, list, self.sessionId)    # Add values to the local database
+            #list[id] = random.randint(1, 100)                           # Generate random integers
+            #print(list)
+                # Add values to the local database
 
+        self.resetSerialConnection()
+        self.serialConnection.close()
         self.shouldend.clear()                                              # Before exiting thread, clear Event object
+
+    def resetSerialConnection(self):
+        self.serialConnection.write("*CLS\r\n".encode())
+        self.serialConnection.write("*RST\r\n".encode())
+        
+       
+
+
+
+    def openSerialConnection(self):
+        ser = serial.Serial("/dev/ttyUSB0", 57600, timeout=1, xonxoff=1)
+        ser.write("*RST\r\n".encode())
+        ser.write("*CLS\r\n".encode())
+        return ser
 
     def getData(self, channelList):
 
@@ -505,12 +551,12 @@ class Addthread(threading.Thread):
         measurementlist = {}
         lookupList = {}
         for index in channelList:
-            lookupList[channelList[index][0]] = index
+            lookupList[channelList[index][3]] = index
             print(lookupList)
             if channelList[index][4] in measurementlist:
-                measurementlist[channelList[index][4]] = measurementlist[channelList[index][4]] + [channelList[index][0], ]
+                measurementlist[channelList[index][4]] = measurementlist[channelList[index][4]] + [int(channelList[index][3]), ]
             else:
-                measurementlist[channelList[index][4]] = [channelList[index][0], ]
+                measurementlist[channelList[index][4]] = [int(channelList[index][3]), ]
             print(measurementlist)
         valuelist = {}
         for index in measurementlist:
@@ -518,13 +564,20 @@ class Addthread(threading.Thread):
             stringargument = stringargument[1:-1]
 
             functionToCall = getattr(Communication, index)
-            result = functionToCall(stringargument)
-
-            newlistentry = dict(zip(measurementlist[index], result))
-
-            for index3 in lookupList:
-                returnlist[lookupList[index3]] = newlistentry[index3]
+            result = functionToCall(self.serialConnection, stringargument)
+            
+            addlist = []
+            for listobject in measurementlist[index]:
+                channelAlias = str(listobject)
+                realChannel = channelList[lookupList[channelAlias]][0]
+                addlist.append(realChannel)
+            newlistentry = dict(zip(addlist, result))
+            print(newlistentry)
+            returnlist.update(newlistentry)
         return returnlist
+        #for index3 in lookupList:
+         #   returnlist[lookupList[index3]] = newlistentry[int(index3)]
+        #return returnlist
 
 
 
@@ -565,7 +618,7 @@ class AddRemoteThread(QtCore.QThread):
         :return: 
         """
         pid = configInterface.readConfig('config.cfg', 'piid')
-        piid = int(pid['id'])                                               # Gets the id of the Raspberry pi running the program
+        piid = int(pid['piid'])                                               # Gets the id of the Raspberry pi running the program
         while not self.addedAllData:
             try:
                 if self.programQuit.wait(0):                                # If signaled that the program wants to terminate
@@ -632,17 +685,17 @@ class AddRemoteThread(QtCore.QThread):
 
 
 if __name__ == '__main__':
-    #remote = configinterface.read_config('config.cfg', 'createremote')
+    #remote = configInterface.readConfig('config.cfg', 'createremote')
 
     local = configInterface.readConfig('config.cfg', 'default')
-    #Database.create_remote_database(remote)
+    #Database.createRemoteDatabase(remote)
     parser = configparser.ConfigParser()
     with open('config.cfg', 'r+') as file:
         parser.read_file(file)
         hasid = parser.has_section('piid')
-    if not hasid:
-        #id = str(Database.remoteAddNewPi(remote, 'placeholdername'))
-        configInterface.setConfig('config.cfg', 'piid', {'id': id})
+    #if not hasid:
+        #identifiers = Database.remoteAddNewPi(remote)
+     #   configInterface.setConfig('config.cfg', 'piid', identifiers)
     Database.createLocalDatabase(local)
     app = QtWidgets.QApplication(sys.argv)
     window = Main()

@@ -93,17 +93,24 @@ class Channelsettings(QtWidgets.QWidget):
                     channelstorhet = "%s" % (self.tableWidget.cellWidget(i, 4).currentText())
                     if channelname == "":
                         raise AttributeError
-                    self.channellist[channelid] = \
-                        [channelidalias,
-                        channelname,
+                    if channelname in self.channellist:
+                        exceptionraised = True
+                        duplicatenames = "Kanalnamn måste vara unika!"
+                        self._messageToUser(duplicatenames,
+                                            closebuttontext="Stäng")
+                        break
+
+                    self.channellist[channelname] = \
+                        [channelid,
                         channelunit,
                         channeltolerance,
+                        channelidalias,
                         channelstorhet]                                   # Collect channel information and add it to the list of channels
-                    channellistforwrite[channelid] = \
-                        str([channelidalias,
-                         channelname,
+                    channellistforwrite[channelname] = \
+                        str([channelid,
                          channelunit,
                          channeltolerance,
+                         channelidalias,
                          channelstorhet])
 
                     float(channeltolerance)                                 # Raises a ValueError if channeltolerance can not be converted to float

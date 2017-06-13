@@ -31,7 +31,7 @@ class Databasesettings(QtWidgets.QWidget):
 
         font = QtGui.QFont()
         font.setFamily("Ubuntu")
-        font.setPointSize(18)
+        font.setPointSize(14)
         infostring = QtWidgets.QLabel(message)
         infostring.setFont(font)                                            # Creates the message displayed at the top of the page
 

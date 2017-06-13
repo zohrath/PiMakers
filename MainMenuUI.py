@@ -39,7 +39,8 @@ class Mainmenu(QtWidgets.QWidget):
 
         self.helpButton = QtWidgets.QPushButton("Hjälp")
         self.helpButton.setMinimumSize(300, 80)
-        self.helpButton.clicked.connect(self.help)                          # Creates the help button and connects its signal
+        self.helpButton.clicked.connect(self.help)
+        self.helpButton.hide()                         # Creates the help button and connects its signal
 
         self.quitButton = QtWidgets.QPushButton("Avsluta")
         self.quitButton.setMinimumSize(300, 80)

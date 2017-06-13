@@ -1,8 +1,11 @@
 import Database
 import datetime
+import csv
 from PyQt5 import QtWidgets
 from PyQt5 import QtCore
 from PyQt5 import QtGui
+import matplotlib
+matplotlib.use("Qt5Agg")
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FC
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NT
 from matplotlib.figure import Figure
@@ -15,16 +18,10 @@ class DataDisplay(QtWidgets.QDialog):
     def __init__(self, databaseValues, sessionId, channelList, ongoing, timeInterval, parent=None):
         self.databaseValues = databaseValues
         self.sessionId = sessionId
-        channelPairs = {}
-        for index in channelList:
-            displayChannel = channelList[index][0]
-            backendChannel = int(index)
-            channelPairs[displayChannel] = backendChannel
-        self.channelPairs = channelPairs
+        self.channelPairs = channelList
+
         self.currentChannels = {}
         self.ongoing = ongoing
-
-
 
         QtWidgets.QDialog.__init__(self, parent)
 
@@ -46,17 +43,9 @@ class DataDisplay(QtWidgets.QDialog):
         font.setFamily('Ubuntu')
         font.setPointSize(18)
 
-        #self.label = QtWidgets.QLabel("Visar kanal %s" % self.currentChannel)
-        #self.label.setFont(font)
-
-        #self.dropDown = QtWidgets.QComboBox()
-        #self.dropDown.currentIndexChanged.connect(self.addChannel)
-        #for item in self.channelPairs:
-        #    self.dropDown.addItem(item)
-
         exportButton = QtWidgets.QPushButton("Exportera mätvärden")
         exportButton.setMinimumSize(200, 80)
-        exportButton.clicked.connect(self.exportValues)
+        exportButton.clicked.connect(self.createSaveDialog)
 
         channelSelection = self.createLists()
         rightHandVBox = QtWidgets.QVBoxLayout()
@@ -66,7 +55,6 @@ class DataDisplay(QtWidgets.QDialog):
 
         vbox = QtWidgets.QVBoxLayout()
         vbox.addStretch(1)
-        #vbox.addWidget(self.dropDown)
         vbox.addWidget(self.toolbar)
         vbox.addWidget(self.plot)
         vbox.addStretch(1)
@@ -81,13 +69,52 @@ class DataDisplay(QtWidgets.QDialog):
 
 
     def exportValues(self):
-        values = self.plot.getValues()
+        saveFile = str(self.fileselector.selectedFiles()[0])
+        channels = self.plot.getValues()
+        if channels:
+            listKey = next(iter(channels.keys()))
+            numberOfValues = len(channels[listKey])
+            headers = ['Kanal', 'Enhet', 'Tolerans', 'Mätvärde', '']
+            with open(saveFile, 'w', newline='') as file:
+                writer = csv.writer(file, dialect='excel')
+                writer.writerow(['Tidsstämpel', ''] + headers * len(channels))
+            for index in range(numberOfValues):
+                timestamp = channels[listKey][index][0]
+                valueList = []
+                for channel in channels:
+                    if index < 1:
+                        valueList.append('')
+                        valueList.append(channel)
+                        valueList.append(self.channelPairs[channel][1])
+                        valueList.append(self.channelPairs[channel][2])
+                    else:
+                        valueList.append('')
+                        valueList.append('')
+                        valueList.append('')
+                        valueList.append('')
+                    valueList.append(channels[channel][index][1])
+                with open(saveFile, 'a', newline='') as file:
+                    writer = csv.writer(file, dialect='excel')
+                    writer.writerow([timestamp, ] + valueList)
+
+
+
+    def createSaveDialog(self):
+        self.fileselector = QtWidgets.QFileDialog()
+        self.fileselector.setAcceptMode(QtWidgets.QFileDialog.AcceptSave)
+        self.fileselector.setOption(QtWidgets.QFileDialog.ShowDirsOnly)
+        self.fileselector.setNameFilter("(*.csv)")
+        self.fileselector.setDefaultSuffix("csv")
+        self.fileselector.fileSelected.connect(self.fileselector.selectFile)
+        self.fileselector.urlSelected.connect(self.fileselector.selectUrl)
+        self.fileselector.accepted.connect(self.exportValues)
+        self.fileselector.show()
+
+
+
 
     def addChannel(self):
         channelToAdd = self.dropDown.currentText()
-        #newTitle = "Kanal: %s" % self.currentChannel
-        #self.plot.channelSwitch(newId=self.channelPairs[self.currentChannel],
-        #                        newTitle=newTitle)
         self.plot.addChannel(channelToAdd, self.channelPairs[channelToAdd])
 
 
@@ -232,7 +259,7 @@ class Currentsessionplot(FC):
 
     def updateFigure(self):
         rawNow = datetime.datetime.now()
-        rawStart = rawNow - datetime.timedelta(seconds=100)
+        rawStart = rawNow - datetime.timedelta(seconds=self.timeInterval*100)
         now = rawNow.strftime('%Y-%m-%d %H:%M:%S')
         start = rawStart.strftime('%Y-%m-%d %H:%M:%S')
 
@@ -242,7 +269,7 @@ class Currentsessionplot(FC):
         for index in self.plotChannels:
             values = Database.getMeasurements(databaseValues=self.databaseValues,
                                           sessionId=self.sessionId,
-                                          channelId=self.plotChannels[index],
+                                          channelId=int(self.plotChannels[index][0]),
                                           startTime=start,
                                           endTime=now)
             xAxisValues = []
@@ -281,7 +308,7 @@ class Currentsessionplot(FC):
         for index in self.plotChannels:
             values = Database.getMeasurements(databaseValues=self.databaseValues,
                                             sessionId=self.sessionId,
-                                            channelId=self.plotChannels[index],
+                                            channelId=self.plotChannels[index][0],
                                             startTime=None,
                                             endTime=None)
 
@@ -310,7 +337,21 @@ class Currentsessionplot(FC):
         self.draw()
 
     def getValues(self):
-        print("Hej")
+        channelDictionary = {}
+        for index in self.axes.lines:
+            xvalues = index.get_xdata()
+            newvalues = []
+            for values in xvalues:
+                values = datetime.datetime.strftime(values, "%Y-%m-%d %H:%M:%S")
+                newvalues.append(values)
+            yvalues = index.get_ydata()
+            values = list(zip(newvalues, yvalues))
+            label = index.get_label()
+            channelDictionary[label] = values
+        return channelDictionary
+
+
+
 
 class Toolbar(NT):
     def __init__(self, canvas, ongoing, parent=None):
