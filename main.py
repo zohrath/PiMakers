@@ -10,6 +10,7 @@ import random
 import ast
 import Communication
 import copy
+import serial
 
 from PyQt5 import QtWidgets
 from PyQt5 import QtCore
@@ -450,6 +451,7 @@ class Main(QtWidgets.QMainWindow):
             self.messageToUser(messageText=wrongPortType,
                                closeButtonText="Stäng")
 
+
     def messageToUser(self, messageText, yesbuttontext=None, closeButtonText=None):
         """
         Creteas a window displaying a specified message to the user
@@ -484,6 +486,7 @@ class Main(QtWidgets.QMainWindow):
         return newList
 
 class Addthread(threading.Thread):
+
     def __init__(self, localDatabase, sessionId, channelList, shouldEnd, timeInterval):
         """
         Creates a new thread for adding values to the local database
@@ -500,6 +503,7 @@ class Addthread(threading.Thread):
         self.shouldend = shouldEnd
         self.channelList = channelList
         self.timeInterval = timeInterval
+        self.serialConnection = self.openSerialConnection()
         threading.Thread.__init__(self)
 
     def run(self):
@@ -510,16 +514,36 @@ class Addthread(threading.Thread):
         while not self.shouldend.wait(self.timeInterval):                  # While the thread has not been told to stop
                                                                             # wait for timeintervall amount of seconds
             list = {}
-            #addlist = self.getData(self.channelList)
-            #print(addlist)
-            for item in self.channelList:
-                id = int(self.channelList[item][0])
+            try:
+                #addlist = self.getData(self.channelList)
+                #print(addlist)
+                for item in self.channelList:
+                    id = int(self.channelList[item][0])
+            except:
+                self.resetSerialConnection()
 
-                list[id] = random.randint(1, 100)                           # Generate random integers
-            print(list)
-            Database.addToDatabase(self.localDatabase, list, self.sessionId)    # Add values to the local database
+                    list[id] = random.randint(1, 100)                           # Generate random integers
+                print(list)
+                Database.addToDatabase(self.localDatabase, list, self.sessionId)    # Add values to the local database
 
+        self.resetSerialConnection()
+        self.serialConnection.close()
         self.shouldend.clear()                                              # Before exiting thread, clear Event object
+
+    def resetSerialConnection(self):
+    self.serialConnection.write("*RST\r\n".encode())
+    self.serialConnection.write("*CLS\r\n".encode())
+    self.serialConnection.reset_output_buffer()
+    self.serialConnection.reset_input_buffer()
+
+
+
+
+    def openSerialConnection(self):
+        ser = serial.Serial("/dev/ttyUSB0", 57600, timeout=1, xonxoff=1)
+        ser.write("*RST\r\n".encode())
+        ser.write("*CLS\r\n".encode())
+        return ser
 
     def getData(self, channelList):
 
@@ -531,9 +555,9 @@ class Addthread(threading.Thread):
             lookupList[channelList[index][0]] = index
             print(lookupList)
             if channelList[index][4] in measurementlist:
-                measurementlist[channelList[index][4]] = measurementlist[channelList[index][4]] + [channelList[index][0], ]
+                measurementlist[channelList[index][4]] = measurementlist[channelList[index][4]] + [int(channelList[index][0]), ]
             else:
-                measurementlist[channelList[index][4]] = [channelList[index][0], ]
+                measurementlist[channelList[index][4]] = [int(channelList[index][0]), ]
             print(measurementlist)
         valuelist = {}
         for index in measurementlist:
@@ -541,12 +565,12 @@ class Addthread(threading.Thread):
             stringargument = stringargument[1:-1]
 
             functionToCall = getattr(Communication, index)
-            result = functionToCall(stringargument)
+            result = functionToCall(self.serialConnection, stringargument)
 
             newlistentry = dict(zip(measurementlist[index], result))
 
-            for index3 in lookupList:
-                returnlist[lookupList[index3]] = newlistentry[index3]
+        for index3 in lookupList:
+            returnlist[lookupList[index3]] = newlistentry[int(index3)]
         return returnlist
 
 
