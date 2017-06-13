@@ -1,2 +1,2 @@
-# PiMakers
-I love me some pi's, raspberry pi's
+# System program for APRTech's measurement system
+In order to be able to run this program using a desktop icon, clone this report to ~/.local/
