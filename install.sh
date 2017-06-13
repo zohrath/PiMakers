@@ -20,7 +20,7 @@ echo "Starting installation of program and the packages needed."
 cd ~
 
 echo "Getting required packages."
-sudo pip3 install PyQt5
+sudo apt-get install python3-pyqt5
 sudo pip3 install matplotlib
 sudo pip3 install pymysql
 sudo pip3 install pyserial
