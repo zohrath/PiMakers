@@ -1,0 +1,12 @@
+[Desktop Entry]
+Version=1.0
+Name=PiMakers
+Comment=Program for storing and visualizing measurements made by PiMakers from Uppsala University.
+Icon=/usr/share/pixmaps/pidgin-menu.xpm
+Exec=python3 /home/nurre/PiMakers/main.py
+Path=/home/nurre/PiMakers/
+StartupNotify=true
+Type=Application
+Encoding=UTF-8
+Terminal=true
+Categories=Utility;Application;
