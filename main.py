@@ -9,6 +9,7 @@ import UI
 import random
 import ast
 import Communication
+import copy
 
 from PyQt5 import QtWidgets
 from PyQt5 import QtCore
@@ -21,8 +22,7 @@ class Main(QtWidgets.QMainWindow):
         Creates the main window of the application
         """
         self.sessionRunning = False
-        piid = configInterface.readConfig('config.cfg', 'piid')
-        self.piid = int(piid['id'])
+
 
         #Creates main GUI
         QtWidgets.QMainWindow.__init__(self)
@@ -339,21 +339,42 @@ class Main(QtWidgets.QMainWindow):
             channelList = w(settings).channellist                                       # Gets a list of channels to use in the session
             timeInterval = w(settings).sessionintervall                                 # Gets the time intervall for the session
 
-
             if self.useRemote:                                                          # If a remote should be used
                 self.remoteDatabase = \
                     configInterface.readConfig('config.cfg', 'remote')                  # Get remote database configurations
+
+                if configInterface.hasSection('config.cfg', 'piid'):
+                    identifiers = configInterface.readConfig('config.cfg', 'piid')
+                    self.uuid = identifiers['uuid']
+
+                    if not Database.remotePiExists(self.remoteDatabase, identifiers['uuid']):
+                        newIdentifiers = Database.remoteAddNewPi(self.remoteDatabase)
+                        print(newIdentifiers)
+                        configInterface.setConfig('config.cfg', 'piid', {'piid': str(self.piid)})
+                    else:
+                        self.piid = Database.remoteGetPiid(self.remoteDatabase, self.uuid)
+                        configInterface.setConfig('config.cfg', 'piid', {'piid': str(self.piid)})
+                else:
+
+                    newIdentifiers = Database.remoteAddNewPi(self.remoteDatabase)
+                    print(newIdentifiers)
+                    self.uuid = newIdentifiers['uuid']
+                    self.piid = int(newIdentifiers['piid'])
+                    configInterface.setConfig('config.cfg', 'piid', {'uuid': self.uuid, 'piid': str(self.piid)})
+
+                localChannels = copy.deepcopy(channelList)
                 remoteChannels = self.convertToRemoteChannels(channelList)
                 self.remoteSessionId = \
                     Database.remoteStartNewSession(databaseValues=self.remoteDatabase,
                                                    name=sessionName,
                                                    channels=remoteChannels,
-                                                   piid=self.piid)                      # Make a new session entry to the remote database
+                                                   piid=self.uuid)                      # Make a new session entry to the remote database
+
 
             self.localSessionId = \
                 Database.startNewSession(databaseValues=self.localDatabase,
                                          name=sessionName,
-                                         channels=channelList)                          # Make a new session entry to the local database
+                                         channels=localChannels)                          # Make a new session entry to the local database
 
 
             currentTime = datetime.datetime.now()
@@ -380,7 +401,7 @@ class Main(QtWidgets.QMainWindow):
             addThread = Addthread(localDatabase=self.localDatabase,
                                   sessionId=self.localSessionId,
                                   shouldEnd=self.shouldEnd,
-                                  channelList=channelList,
+                                  channelList=localChannels,
                                   timeInterval=timeInterval)
             addThread.start()                                               # Create a thread for adding to the local database and start it
 
@@ -398,7 +419,7 @@ class Main(QtWidgets.QMainWindow):
 
             self.dataDisplay = DataDisplay(databaseValues=self.localDatabase,
                                            sessionId=self.localSessionId,
-                                           channelList=channelList,
+                                           channelList=localChannels,
                                            ongoing=True,
                                            timeInterval=timeInterval)     # Create a new window for displaying data
             self.dataDisplay.show()                                         # Show the window
@@ -453,11 +474,13 @@ class Main(QtWidgets.QMainWindow):
         :param channelList: the list of channels
         :return: The same tuple given as an argument, but with new keys
         """
+        print(channelList)
         newList = {}
         for index in channelList:
-            newIndex = int(index)
-            newIndex = newIndex + 60*(self.piid-1)
-            newList[str(newIndex)] = channelList[index]                     # Todo: Check if this can be done without hard coding
+            newValues = channelList[index]
+            newValues[0] = int(newValues[0]) + 60*(self.piid-1)
+            newList[index] = newValues                     # Todo: Check if this can be done without hard coding
+        print(newList)
         return newList
 
 class Addthread(threading.Thread):
@@ -490,7 +513,7 @@ class Addthread(threading.Thread):
             #addlist = self.getData(self.channelList)
             #print(addlist)
             for item in self.channelList:
-                id = int(item)
+                id = int(self.channelList[item][0])
 
                 list[id] = random.randint(1, 100)                           # Generate random integers
             print(list)
@@ -565,7 +588,7 @@ class AddRemoteThread(QtCore.QThread):
         :return: 
         """
         pid = configInterface.readConfig('config.cfg', 'piid')
-        piid = int(pid['id'])                                               # Gets the id of the Raspberry pi running the program
+        piid = int(pid['piid'])                                               # Gets the id of the Raspberry pi running the program
         while not self.addedAllData:
             try:
                 if self.programQuit.wait(0):                                # If signaled that the program wants to terminate
@@ -632,17 +655,17 @@ class AddRemoteThread(QtCore.QThread):
 
 
 if __name__ == '__main__':
-    #remote = configinterface.read_config('config.cfg', 'createremote')
+    remote = configInterface.readConfig('config.cfg', 'createremote')
 
     local = configInterface.readConfig('config.cfg', 'default')
-    #Database.create_remote_database(remote)
+    Database.createRemoteDatabase(remote)
     parser = configparser.ConfigParser()
     with open('config.cfg', 'r+') as file:
         parser.read_file(file)
         hasid = parser.has_section('piid')
-    if not hasid:
-        #id = str(Database.remoteAddNewPi(remote, 'placeholdername'))
-        configInterface.setConfig('config.cfg', 'piid', {'id': id})
+    #if not hasid:
+        #identifiers = Database.remoteAddNewPi(remote)
+     #   configInterface.setConfig('config.cfg', 'piid', identifiers)
     Database.createLocalDatabase(local)
     app = QtWidgets.QApplication(sys.argv)
     window = Main()
