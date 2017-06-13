@@ -338,7 +338,8 @@ class Main(QtWidgets.QMainWindow):
 
             sessionName = w(settings).sessionname                                       # Gets the sessionname
             channelList = w(settings).channellist                                       # Gets a list of channels to use in the session
-            timeInterval = w(settings).sessionintervall                                 # Gets the time intervall for the session
+            timeInterval = w(settings).sessionintervall
+            localChannels = copy.deepcopy(channelList)                                 # Gets the time intervall for the session
 
             if self.useRemote:                                                          # If a remote should be used
                 self.remoteDatabase = \
@@ -363,7 +364,7 @@ class Main(QtWidgets.QMainWindow):
                     self.piid = int(newIdentifiers['piid'])
                     configInterface.setConfig('config.cfg', 'piid', {'uuid': self.uuid, 'piid': str(self.piid)})
 
-                localChannels = copy.deepcopy(channelList)
+                
                 remoteChannels = self.convertToRemoteChannels(channelList)
                 self.remoteSessionId = \
                     Database.remoteStartNewSession(databaseValues=self.remoteDatabase,
@@ -504,7 +505,7 @@ class Addthread(threading.Thread):
         self.channelList = channelList
         self.timeInterval = timeInterval
         self.serialConnection = self.openSerialConnection()
-        threading.Thread.__init__(self)
+        threading.Thread.__init__(self)	
 
     def run(self):
         """
@@ -515,27 +516,25 @@ class Addthread(threading.Thread):
                                                                             # wait for timeintervall amount of seconds
             list = {}
             try:
-                #addlist = self.getData(self.channelList)
-                #print(addlist)
-                for item in self.channelList:
-                    id = int(self.channelList[item][0])
+                addlist = self.getData(self.channelList)
+                print(addlist)
+                Database.addToDatabase(self.localDatabase, addlist, self.sessionId)
             except:
                 self.resetSerialConnection()
 
-                    list[id] = random.randint(1, 100)                           # Generate random integers
-                print(list)
-                Database.addToDatabase(self.localDatabase, list, self.sessionId)    # Add values to the local database
+            #list[id] = random.randint(1, 100)                           # Generate random integers
+            #print(list)
+                # Add values to the local database
 
         self.resetSerialConnection()
         self.serialConnection.close()
         self.shouldend.clear()                                              # Before exiting thread, clear Event object
 
     def resetSerialConnection(self):
-    self.serialConnection.write("*RST\r\n".encode())
-    self.serialConnection.write("*CLS\r\n".encode())
-    self.serialConnection.reset_output_buffer()
-    self.serialConnection.reset_input_buffer()
-
+        self.serialConnection.write("*CLS\r\n".encode())
+        self.serialConnection.write("*RST\r\n".encode())
+        
+       
 
 
 
@@ -552,12 +551,12 @@ class Addthread(threading.Thread):
         measurementlist = {}
         lookupList = {}
         for index in channelList:
-            lookupList[channelList[index][0]] = index
+            lookupList[channelList[index][3]] = index
             print(lookupList)
             if channelList[index][4] in measurementlist:
-                measurementlist[channelList[index][4]] = measurementlist[channelList[index][4]] + [int(channelList[index][0]), ]
+                measurementlist[channelList[index][4]] = measurementlist[channelList[index][4]] + [int(channelList[index][3]), ]
             else:
-                measurementlist[channelList[index][4]] = [int(channelList[index][0]), ]
+                measurementlist[channelList[index][4]] = [int(channelList[index][3]), ]
             print(measurementlist)
         valuelist = {}
         for index in measurementlist:
@@ -566,12 +565,19 @@ class Addthread(threading.Thread):
 
             functionToCall = getattr(Communication, index)
             result = functionToCall(self.serialConnection, stringargument)
-
-            newlistentry = dict(zip(measurementlist[index], result))
-
-        for index3 in lookupList:
-            returnlist[lookupList[index3]] = newlistentry[int(index3)]
+            
+            addlist = []
+            for listobject in measurementlist[index]:
+                channelAlias = str(listobject)
+                realChannel = channelList[lookupList[channelAlias]][0]
+                addlist.append(realChannel)
+            newlistentry = dict(zip(addlist, result))
+            print(newlistentry)
+            returnlist.update(newlistentry)
         return returnlist
+        #for index3 in lookupList:
+         #   returnlist[lookupList[index3]] = newlistentry[int(index3)]
+        #return returnlist
 
 
 
@@ -679,10 +685,10 @@ class AddRemoteThread(QtCore.QThread):
 
 
 if __name__ == '__main__':
-    remote = configInterface.readConfig('config.cfg', 'createremote')
+    #remote = configInterface.readConfig('config.cfg', 'createremote')
 
     local = configInterface.readConfig('config.cfg', 'default')
-    Database.createRemoteDatabase(remote)
+    #Database.createRemoteDatabase(remote)
     parser = configparser.ConfigParser()
     with open('config.cfg', 'r+') as file:
         parser.read_file(file)

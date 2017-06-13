@@ -93,6 +93,13 @@ class Channelsettings(QtWidgets.QWidget):
                     channelstorhet = "%s" % (self.tableWidget.cellWidget(i, 4).currentText())
                     if channelname == "":
                         raise AttributeError
+                    if channelname in self.channellist:
+                        exceptionraised = True
+                        duplicatenames = "Kanalnamn måste vara unika!"
+                        self._messageToUser(duplicatenames,
+                                            closebuttontext="Stäng")
+                        break
+
                     self.channellist[channelname] = \
                         [channelid,
                         channelunit,

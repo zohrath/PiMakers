@@ -4,6 +4,8 @@ import csv
 from PyQt5 import QtWidgets
 from PyQt5 import QtCore
 from PyQt5 import QtGui
+import matplotlib
+matplotlib.use("Qt5Agg")
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FC
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NT
 from matplotlib.figure import Figure
